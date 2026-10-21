@@ -7,8 +7,8 @@ no server and keeps no state.
 This README is for the engineer who installs Rampguard in an Android app repository. It assumes you already upload
 and submit releases through the Play Console or CI, and that your repository uses GitHub Actions.
 
-> **Status: pre-release.** The CLI and the action work. No release has been published yet, so
-> `savvasg28/Rampguard@v1` does not resolve until the first tag.
+> **Status: 0.1.0, early.** `savvasg28/Rampguard@v1` resolves to the current release. The write path has been
+> exercised against a fake Play server and in dry runs; treat the first real rollout as a trial and watch it.
 
 ## Terms
 
