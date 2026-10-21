@@ -1,0 +1,37 @@
+# Pushing a tag v* builds the fat jar and attaches it, with its SHA-256, to a GitHub Release.
+# Then pin the printed checksum and tag in action.yml and move the v1 tag (see README, Releasing).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build
+        run: ./gradlew check :cli:shadowJar --no-daemon
+      - name: Checksum
+        id: sum
+        run: |
+          cd cli/build/libs
+          sha256sum rampguard-all.jar | tee rampguard-all.jar.sha256
+          echo "sha256=$(cut -d' ' -f1 rampguard-all.jar.sha256)" >> "$GITHUB_OUTPUT"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" cli/build/libs/rampguard-all.jar cli/build/libs/rampguard-all.jar.sha256 \
+            --title "$TAG" --generate-notes
+          echo "::notice::rampguard-all.jar sha256 ${{ steps.sum.outputs.sha256 }}; pin it in action.yml for $TAG"

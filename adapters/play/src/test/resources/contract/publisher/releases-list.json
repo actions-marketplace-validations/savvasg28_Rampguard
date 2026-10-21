@@ -1,0 +1,24 @@
+{
+  "releases": [
+    {
+      "activeArtifacts": [
+        {
+          "versionCode": 101
+        }
+      ],
+      "releaseLifecycleState": "RELEASE_LIFECYCLE_STATE_PUBLISHED",
+      "releaseName": "2.4.0",
+      "track": "production"
+    },
+    {
+      "activeArtifacts": [
+        {
+          "versionCode": 100
+        }
+      ],
+      "releaseLifecycleState": "RELEASE_LIFECYCLE_STATE_PUBLISHED",
+      "releaseName": "2.3.0",
+      "track": "production"
+    }
+  ]
+}

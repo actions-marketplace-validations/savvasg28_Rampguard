@@ -1,0 +1,46 @@
+# Copy to .github/workflows/rollout-command.yml in the app repository.
+# Halts arrive from alerting tools through repository_dispatch; people use the Actions tab.
+#
+#   curl -X POST https://api.github.com/repos/<owner>/<repo>/dispatches \
+#     -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+#     -d '{"event_type":"rollout-halt","client_payload":{"source":"sentry","reason":"crash spike","versionCode":101}}'
+name: Rollout command
+
+on:
+  repository_dispatch:
+    types: [rollout-halt]
+  workflow_dispatch:
+    inputs:
+      command:
+        description: What to do
+        type: choice
+        options: [status, halt]
+        default: status
+      version-code:
+        description: For halt, the versionCode of the release to halt
+        default: ""
+      reason:
+        description: For halt, why
+        default: manual
+
+concurrency:
+  group: rampguard-com.example.app   # same group as rollout-tick.yml, so a halt never races a tick
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  command:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: savvasg28/Rampguard@v1
+        with:
+          command: ${{ github.event_name == 'repository_dispatch' && 'halt' || inputs.command }}
+          version-code: ${{ github.event.client_payload.versionCode || inputs.version-code }}
+          reason: ${{ github.event.client_payload.reason || inputs.reason }}
+          source: ${{ github.event.client_payload.source || github.actor }}
+          play-credentials: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

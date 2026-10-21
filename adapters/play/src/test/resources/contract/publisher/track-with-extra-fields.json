@@ -1,0 +1,32 @@
+{
+  "releases": [
+    {
+      "countryTargeting": {
+        "countries": ["GB", "IE"],
+        "includeRestOfWorld": false
+      },
+      "inAppUpdatePriority": 3,
+      "name": "2.4.0",
+      "releaseNotes": [
+        {
+          "language": "en-GB",
+          "text": "Bug fixes and improvements."
+        }
+      ],
+      "status": "inProgress",
+      "userFraction": 0.05,
+      "versionCodes": [
+        "101"
+      ]
+    },
+    {
+      "inAppUpdatePriority": 2,
+      "name": "2.3.0",
+      "status": "completed",
+      "versionCodes": [
+        "100"
+      ]
+    }
+  ],
+  "track": "production"
+}

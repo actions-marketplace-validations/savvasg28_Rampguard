@@ -1,0 +1,43 @@
+# Rampguard detekt configuration. Builds upon the default config.
+build:
+  maxIssues: 0
+
+style:
+  MaxLineLength:
+    maxLineLength: 120
+  ReturnCount:
+    max: 6
+    excludeGuardClauses: true
+  MagicNumber:
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreNumbers: ['-1', '0', '1', '2', '100']
+  WildcardImport:
+    active: false
+  UnusedPrivateMember:
+    active: true
+  ForbiddenComment:
+    active: false
+
+complexity:
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 10
+  LongMethod:
+    threshold: 80
+  CyclomaticComplexMethod:
+    threshold: 18
+  TooManyFunctions:
+    thresholdInFiles: 20
+    thresholdInClasses: 20
+    thresholdInObjects: 20
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Test', 'ParameterizedTest']
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
+  SwallowedException:
+    active: false

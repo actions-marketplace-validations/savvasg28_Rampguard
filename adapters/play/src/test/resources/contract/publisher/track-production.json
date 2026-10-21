@@ -1,0 +1,22 @@
+{
+  "releases": [
+    {
+      "inAppUpdatePriority": 2,
+      "name": "2.4.0",
+      "status": "inProgress",
+      "userFraction": 0.1,
+      "versionCodes": [
+        "101"
+      ]
+    },
+    {
+      "inAppUpdatePriority": 2,
+      "name": "2.3.0",
+      "status": "completed",
+      "versionCodes": [
+        "100"
+      ]
+    }
+  ],
+  "track": "production"
+}

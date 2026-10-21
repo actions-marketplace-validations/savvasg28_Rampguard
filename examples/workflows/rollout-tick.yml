@@ -1,0 +1,33 @@
+# Copy to .github/workflows/rollout-tick.yml in the app repository.
+# One scheduled run = one step of the staged rollout (ADR 0011). Choose the cron to match how often you want a step.
+name: Rollout tick
+
+on:
+  schedule:
+    - cron: "17 9 * * 1-5"   # weekday mornings, 09:17 UTC; an odd minute avoids GitHub's on-the-hour delays
+  workflow_dispatch:         # "advance now": does exactly what the schedule does
+    inputs:
+      dry-run:
+        description: Decide and report without writing to Play
+        type: boolean
+        default: false
+
+concurrency:
+  group: rampguard-com.example.app   # one group per app, shared with rollout-command.yml
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5   # for .github/rampguard.yml
+      - uses: savvasg28/Rampguard@v1
+        with:
+          command: tick
+          dry-run: ${{ inputs.dry-run || false }}
+          play-credentials: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

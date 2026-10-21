@@ -1,0 +1,102 @@
+name: Rampguard Play Rollout
+description: Steps a Google Play staged rollout to its next stage on a schedule; halts it on command.
+author: savvasg28
+
+branding:
+  icon: trending-up
+  color: green
+
+inputs:
+  command:
+    description: One of tick, halt, status, validate.
+    required: true
+  config:
+    description: Path to rampguard.yml in the repository.
+    default: .github/rampguard.yml
+  play-credentials:
+    description: >-
+      Google service-account key JSON (store it as a repository secret). Needed by tick, halt and status.
+      Alternatively authenticate with google-github-actions/auth before this step and leave this empty.
+    default: ""
+  version-code:
+    description: For halt, the versionCode of the release to halt.
+    default: ""
+  reason:
+    description: For halt, why. Shown in the notification.
+    default: manual
+  source:
+    description: For halt, who or what asked.
+    default: ""
+  dry-run:
+    description: Decide and report, but write nothing to Play. Use it once to check the install.
+    default: "false"
+  rampguard-version:
+    description: Release tag of the rampguard jar to run.
+    default: v0.1.0
+  rampguard-sha256:
+    description: Expected SHA-256 of that jar. The download is refused if it does not match.
+    default: "0000000000000000000000000000000000000000000000000000000000000000"
+
+runs:
+  using: composite
+  steps:
+    # TODO: pin these two actions to commit SHAs before the first stable release.
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: "21"
+
+    - name: Download rampguard
+      shell: bash
+      env:
+        VERSION: ${{ inputs.rampguard-version }}
+        SHA256: ${{ inputs.rampguard-sha256 }}
+      run: |
+        set -euo pipefail
+        jar="$RUNNER_TEMP/rampguard.jar"
+        curl -sSfL --retry 3 -o "$jar" \
+          "https://github.com/savvasg28/Rampguard/releases/download/${VERSION}/rampguard-all.jar"
+        echo "${SHA256}  ${jar}" | sha256sum -c - >/dev/null || {
+          echo "::error::rampguard jar checksum mismatch for ${VERSION}; refusing to run it" >&2
+          exit 1
+        }
+        echo "RAMPGUARD_JAR=$jar" >> "$GITHUB_ENV"
+
+    - name: Prepare Play credentials
+      if: inputs.play-credentials != ''
+      shell: bash
+      env:
+        PLAY_CREDENTIALS: ${{ inputs.play-credentials }}
+      run: |
+        set -euo pipefail
+        umask 077
+        file="$RUNNER_TEMP/play-credentials.json"
+        printf '%s' "$PLAY_CREDENTIALS" > "$file"
+        echo "GOOGLE_APPLICATION_CREDENTIALS=$file" >> "$GITHUB_ENV"
+        echo "::add-mask::$PLAY_CREDENTIALS"
+
+    - name: Run rampguard
+      shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+        CONFIG: ${{ inputs.config }}
+        VERSION_CODE: ${{ inputs.version-code }}
+        REASON: ${{ inputs.reason }}
+        SOURCE: ${{ inputs.source || github.actor }}
+        DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        set -euo pipefail
+        args=("$COMMAND" --config "$CONFIG")
+        if [ "$DRY_RUN" = "true" ] && [ "$COMMAND" != "status" ] && [ "$COMMAND" != "validate" ]; then
+          args+=(--dry-run)
+        fi
+        if [ "$COMMAND" = "halt" ]; then
+          [ -n "$VERSION_CODE" ] || { echo "::error::halt needs version-code" >&2; exit 2; }
+          args+=(--version-code "$VERSION_CODE" --reason "$REASON" --source "$SOURCE")
+        fi
+        java -jar "$RAMPGUARD_JAR" "${args[@]}"
+
+    - name: Remove Play credentials
+      if: always()
+      shell: bash
+      run: rm -f "$RUNNER_TEMP/play-credentials.json"
