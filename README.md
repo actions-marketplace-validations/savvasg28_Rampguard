@@ -106,6 +106,20 @@ This section is for maintainers.
 
 The action refuses to run a jar whose checksum does not match.
 
+## Run locally
+
+You can run every command from a checkout without touching any workflow. Each command reads Play and, except for a
+real `tick` or `halt`, writes nothing.
+
+```sh
+export GOOGLE_APPLICATION_CREDENTIALS=~/keys/play-service-account.json
+bin/rampguard status --config ~/rampguard-myapp.yml
+bin/rampguard tick --dry-run --config ~/rampguard-myapp.yml
+```
+
+`bin/rampguard` builds the launcher on first use. To install it elsewhere, run `./gradlew :cli:installDist` and copy
+`cli/build/install/rampguard/`.
+
 ## Develop
 
 ```sh

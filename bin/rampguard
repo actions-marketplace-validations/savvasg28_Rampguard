@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Runs the rampguard CLI from a source checkout. Builds the launcher on first use (or after a clean).
+#   bin/rampguard status --config ~/rampguard-myapp.yml
+#   bin/rampguard tick --dry-run --config ~/rampguard-myapp.yml
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+launcher="$root/cli/build/install/rampguard/bin/rampguard"
+if [ ! -x "$launcher" ] || [ -n "${RAMPGUARD_REBUILD:-}" ]; then
+  "$root/gradlew" -q -p "$root" :cli:installDist >&2
+fi
+exec "$launcher" "$@"
