@@ -99,8 +99,9 @@ Resuming a halted release is a human decision in the Play Console.
 
 This section is for maintainers.
 
-1. Push a tag `vX.Y.Z`. The release workflow runs the checks, builds the jar, and attaches the jar and its SHA-256 to
-   a GitHub Release. The workflow log prints the checksum.
+1. In the Actions tab, run the Release workflow with the version, for example `v0.1.0`. It runs the checks, builds
+   the jar, creates the tag at the commit it built, and attaches the jar and its SHA-256 to a GitHub Release. The
+   workflow log prints the checksum. Pushing the tag by hand triggers the same workflow.
 2. In `action.yml`, set the defaults of `rampguard-version` and `rampguard-sha256` to the new tag and checksum.
 3. Commit, then move the `v1` tag to that commit.
 

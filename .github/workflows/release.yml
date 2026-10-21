@@ -1,8 +1,14 @@
-# Pushing a tag v* builds the fat jar and attaches it, with its SHA-256, to a GitHub Release.
-# Then pin the printed checksum and tag in action.yml and move the v1 tag (see README, Releasing).
+# Builds the fat jar and attaches it, with its SHA-256, to a GitHub Release.
+# Run it from the Actions tab with a version such as v0.1.0; the workflow creates that tag at the commit it built.
+# Pushing a tag v* by hand also works. Then pin the printed checksum in action.yml (see README, Releasing).
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag to create, for example v0.1.0
+        required: true
   push:
     tags: ["v*"]
 
@@ -30,8 +36,9 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.version || github.ref_name }}
         run: |
+          case "$TAG" in v[0-9]*) ;; *) echo "::error::version must look like v0.1.0, got '$TAG'"; exit 2 ;; esac
           gh release create "$TAG" cli/build/libs/rampguard-all.jar cli/build/libs/rampguard-all.jar.sha256 \
-            --title "$TAG" --generate-notes
+            --target "$GITHUB_SHA" --title "$TAG" --generate-notes
           echo "::notice::rampguard-all.jar sha256 ${{ steps.sum.outputs.sha256 }}; pin it in action.yml for $TAG"
