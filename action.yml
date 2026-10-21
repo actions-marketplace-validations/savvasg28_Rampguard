@@ -19,7 +19,7 @@ inputs:
       Alternatively authenticate with google-github-actions/auth before this step and leave this empty.
     default: ""
   version-code:
-    description: For halt, the versionCode of the release to halt.
+    description: For halt, the versionCode of the release to halt. Non-digits are stripped, so a tag value like version_code:101 works.
     default: ""
   reason:
     description: For halt, why. Shown in the notification.
@@ -90,6 +90,7 @@ runs:
           args+=(--dry-run)
         fi
         if [ "$COMMAND" = "halt" ]; then
+          VERSION_CODE="$(printf '%s' "$VERSION_CODE" | tr -cd '0-9')"
           [ -n "$VERSION_CODE" ] || { echo "::error::halt needs version-code" >&2; exit 2; }
           args+=(--version-code "$VERSION_CODE" --reason "$REASON" --source "$SOURCE")
         fi
