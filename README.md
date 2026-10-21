@@ -9,8 +9,7 @@ and submit releases through the Play Console or CI, and that your repository use
 
 > **Status: 0.1.0, early.** Listed on the GitHub Marketplace as
 > [Rampguard Play Rollout](https://github.com/marketplace/actions/rampguard-play-rollout); `savvasg28/Rampguard@v1`
-> resolves to the current release. The write path has been exercised against a fake Play server and in dry runs;
-> treat the first real rollout as a trial and watch it.
+> resolves to the current release.
 
 ## Terms
 
