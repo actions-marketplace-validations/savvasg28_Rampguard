@@ -100,13 +100,11 @@ Resuming a halted release is a human decision in the Play Console.
 
 This section is for maintainers.
 
-1. In the Actions tab, run the Release workflow with the version, for example `v0.1.0`. It runs the checks, builds
-   the jar, creates the tag at the commit it built, and attaches the jar and its SHA-256 to a GitHub Release. The
-   workflow log prints the checksum. Pushing the tag by hand triggers the same workflow.
-2. In `action.yml`, set the defaults of `rampguard-version` and `rampguard-sha256` to the new tag and checksum.
-3. Commit, then move the `v1` tag to that commit.
+In the Actions tab, run the Release workflow with the version, for example `0.2.0`. It runs the checks, builds the
+jar, pins the jar's SHA-256 in `action.yml`, commits that pin to `main`, moves the `v1` tag to the new commit, and
+uploads the jar and its checksum to the single `v1` release. Installers always use `@v1`.
 
-The action refuses to run a jar whose checksum does not match.
+The action refuses to run a jar whose checksum does not match the pin.
 
 ## Run locally
 

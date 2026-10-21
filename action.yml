@@ -31,8 +31,8 @@ inputs:
     description: Decide and report, but write nothing to Play. Use it once to check the install.
     default: "false"
   rampguard-version:
-    description: Release tag of the rampguard jar to run.
-    default: v0.1.0
+    description: GitHub Release whose rampguard jar to run.
+    default: v1
   rampguard-sha256:
     description: Expected SHA-256 of that jar. The download is refused if it does not match.
     default: "3e474e23f13283c5d0ff80a1c9d13836d895527151d4469d8c42e66ca2af138b"

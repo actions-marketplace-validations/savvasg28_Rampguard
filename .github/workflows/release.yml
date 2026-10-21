@@ -1,19 +1,21 @@
-# Builds the fat jar and attaches it, with its SHA-256, to a GitHub Release.
-# Run it from the Actions tab with a version such as v0.1.0; the workflow creates that tag at the commit it built.
-# Pushing a tag v* by hand also works. Then pin the printed checksum in action.yml (see README, Releasing).
+# Builds the fat jar, uploads it with its SHA-256 to the single `v1` release, pins the checksum in action.yml,
+# commits that pin to main and moves the `v1` tag to it. Run it from the Actions tab with a version such as 0.2.0;
+# the version goes into the release notes and the commit message.
 name: Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release tag to create, for example v0.1.0
+        description: Version being released, for example 0.2.0 (the release and tag stay v1)
         required: true
-  push:
-    tags: ["v*"]
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -33,12 +35,29 @@ jobs:
           cd cli/build/libs
           sha256sum rampguard-all.jar | tee rampguard-all.jar.sha256
           echo "sha256=$(cut -d' ' -f1 rampguard-all.jar.sha256)" >> "$GITHUB_OUTPUT"
-      - name: Publish release
+      - name: Pin the checksum in action.yml
+        env:
+          SHA256: ${{ steps.sum.outputs.sha256 }}
+        run: |
+          sed -i -E "s/^(    default: \")[0-9a-f]{64}(\")$/\1${SHA256}\2/" action.yml
+          grep -q "$SHA256" action.yml
+      - name: Commit the pin and move the v1 tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          case "$VERSION" in [0-9]*) ;; *) echo "::error::version must look like 0.2.0, got '$VERSION'"; exit 2 ;; esac
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add action.yml
+          git commit -m "Release $VERSION: pin the jar checksum" || echo "checksum unchanged"
+          git push origin HEAD:main
+          git tag -f v1
+          git push -f origin v1
+      - name: Upload the jar to the v1 release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.version || github.ref_name }}
+          VERSION: ${{ inputs.version }}
         run: |
-          case "$TAG" in v[0-9]*) ;; *) echo "::error::version must look like v0.1.0, got '$TAG'"; exit 2 ;; esac
-          gh release create "$TAG" cli/build/libs/rampguard-all.jar cli/build/libs/rampguard-all.jar.sha256 \
-            --target "$GITHUB_SHA" --title "$TAG" --generate-notes
-          echo "::notice::rampguard-all.jar sha256 ${{ steps.sum.outputs.sha256 }}; pin it in action.yml for $TAG"
+          gh release view v1 >/dev/null 2>&1 || gh release create v1 --title v1 --notes "Rampguard $VERSION"
+          gh release upload v1 cli/build/libs/rampguard-all.jar cli/build/libs/rampguard-all.jar.sha256 --clobber
+          gh release edit v1 --notes "Rampguard $VERSION. Steps a Google Play staged rollout one stage per scheduled run and halts it on command. Stateless; no server."
