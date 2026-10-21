@@ -34,7 +34,7 @@ jobs:
   command:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: savvasg28/Rampguard@v1
         with:
           command: ${{ github.event_name == 'repository_dispatch' && 'halt' || inputs.command }}
