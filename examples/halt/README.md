@@ -35,7 +35,8 @@ one without touching the others. Anyone who holds the token can halt the rollout
 | A person or a script | [`curl.sh`](curl.sh) |
 | Datadog monitor | [`datadog-webhook.md`](datadog-webhook.md) |
 | Sentry issue alert, through a relay | [`sentry-relay.js`](sentry-relay.js) |
+| Crashlytics velocity alert, through a Cloud Function | [`crashlytics-function.js`](crashlytics-function.js) |
 
 Datadog can call GitHub directly because its webhooks allow custom headers. Sentry's cannot carry an `Authorization`
-header, so a small relay signs the request on its behalf. The relay pattern works for any tool that can only post a
-fixed webhook.
+header, so a small relay signs the request on its behalf. Crashlytics has no webhook at all, but Firebase Functions
+can run on its alerts. The relay pattern works for any tool that can only post a fixed webhook or fire an event.

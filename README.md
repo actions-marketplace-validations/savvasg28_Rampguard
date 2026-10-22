@@ -96,7 +96,7 @@ for another version code, does nothing. A person can also halt from the Actions 
 Anyone whose token can dispatch to the repository can halt the rollout. Use a fine-grained token per sender.
 Resuming a halted release is a human decision in the Play Console.
 
-Recipes for Datadog, Sentry and the shell are in [`examples/halt/`](examples/halt/README.md).
+Recipes for Datadog, Sentry, Crashlytics and the shell are in [`examples/halt/`](examples/halt/README.md).
 
 ## Release Rampguard
 
