@@ -30,14 +30,12 @@ one without touching the others. Anyone who holds the token can halt the rollout
 
 ## Recipes
 
-| Sender | File | Status |
-|---|---|---|
-| A person or a script | [`curl.sh`](curl.sh) | Tested |
-| Datadog monitor | [`datadog-webhook.md`](datadog-webhook.md) | Untested |
-| Sentry issue alert, through a relay | [`sentry-relay.js`](sentry-relay.js) | Untested |
+| Sender | File |
+|---|---|
+| A person or a script | [`curl.sh`](curl.sh) |
+| Datadog monitor | [`datadog-webhook.md`](datadog-webhook.md) |
+| Sentry issue alert, through a relay | [`sentry-relay.js`](sentry-relay.js) |
 
 Datadog can call GitHub directly because its webhooks allow custom headers. Sentry's cannot carry an `Authorization`
 header, so a small relay signs the request on its behalf. The relay pattern works for any tool that can only post a
 fixed webhook.
-
-When you test a recipe for real, change its status here.

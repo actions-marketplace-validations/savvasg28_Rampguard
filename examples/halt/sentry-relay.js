@@ -1,4 +1,4 @@
-// Relay a Sentry issue-alert webhook to a Rampguard halt. Status: untested.
+// Relay a Sentry issue-alert webhook to a Rampguard halt.
 //
 // Sentry webhooks cannot send an Authorization header, so this Cloudflare Worker receives the alert, checks its
 // signature, extracts the version code from the release name, and sends the repository_dispatch to GitHub.

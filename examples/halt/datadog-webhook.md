@@ -1,6 +1,6 @@
 # Datadog monitor to halt
 
-Status: untested. Datadog webhooks can send custom headers, so a monitor can call GitHub directly.
+Datadog webhooks can send custom headers, so a monitor can call GitHub directly.
 
 ## 1. Create the webhook
 
@@ -42,4 +42,4 @@ Crash rate above threshold for {{version_code.name}}. @webhook-rampguard-halt
 
 Use the monitor's **Test Notifications** button with a group that matches a version code that is not live. The
 command workflow should run and report `versionCode N is not the active rollout`, which proves the wiring without
-halting anything. Then update the status at the top of this page.
+halting anything.
