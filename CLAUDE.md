@@ -26,7 +26,10 @@ behaviour and `docs/adr/` records the decisions behind the code. Read both befor
   `core/src/testFixtures/.../Simulation.kt`, or with a property in `EnginePropertyTest.kt`. Scenario tests assert the
   exact action timeline: timestamp and decision text.
 - Reason strings are part of the audit contract. Define them in `engine/Reasons.kt` only.
-- `Status` field names are a contract for external tools: add fields, never rename them.
+- `Status` field names and the webhook document (`adapters/notifier-webhook/.../WebhookEvent.kt`) are contracts for
+  external tools: add fields, never rename them.
+- A configuration value written `${NAME}` is an environment reference. `core` parses it into `Setting.FromEnvironment`
+  and never resolves it; `cli/.../Destinations.kt` resolves it. Keep it that way.
 - Kover line coverage on core must stay at or above 90%.
 
 ## Build and checks

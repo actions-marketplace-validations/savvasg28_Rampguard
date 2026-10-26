@@ -11,26 +11,25 @@ export default {
     if (!doc) return new Response("bad signature", { status: 401 });
 
     const version = doc.release ? doc.release.name : "unknown";
-    const pct = (f) => Math.round(f * 100) + "%";
     const titles = {
-      advanced: `Rollout ${version} advanced ${pct(doc.from)} -> ${pct(doc.to)}`,
-      completed: `Rollout ${version} completed`,
-      halted: `Rollout ${version} halted: ${doc.reason}`,
-      ready_to_publish: `Release ${version} is approved and waiting to be published`,
-      rejected: `Release ${version} was rejected by Play review`,
-      error: `Rampguard could not read or step the rollout`,
+      "rollout.advanced": () => `Rollout ${version} advanced ${doc.rollout.fromPercent}% -> ${doc.rollout.toPercent}%`,
+      "rollout.completed": () => `Rollout ${version} completed`,
+      "rollout.halted": () => `Rollout ${version} halted: ${doc.halt.reason}`,
+      "release.readyToPublish": () => `Release ${version} is approved and waiting to be published`,
+      "release.rejected": () => `Release ${version} was rejected by Play review`,
+      "run.failed": () => `Rampguard could not read or step the rollout`,
     };
-    const alertType = { halted: "error", rejected: "error", error: "error", ready_to_publish: "warning" }[doc.event] || "info";
+    const alertTypes = { "rollout.halted": "error", "release.rejected": "error", "run.failed": "error", "release.readyToPublish": "warning" };
 
     const body = {
-      title: titles[doc.event] || `Rampguard ${doc.event}`,
-      text: doc.message || doc.run || "",
-      alert_type: alertType,
+      title: titles[doc.type] ? titles[doc.type]() : `Rampguard ${doc.type}`,
+      text: doc.failure ? doc.failure.message : doc.workflowRun || "",
+      alert_type: alertTypes[doc.type] || "info",
       source_type_name: "rampguard",
-      date_happened: Math.floor(Date.parse(doc.at) / 1000),
+      date_happened: Math.floor(Date.parse(doc.occurredAt) / 1000),
       tags: [
         `app:${doc.app}`,
-        `event:${doc.event}`,
+        `type:${doc.type}`,
         ...(doc.release ? [`version:${version}`, ...doc.release.versionCodes.map((c) => `version_code:${c}`)] : []),
       ],
     };
@@ -44,6 +43,6 @@ export default {
   },
 };
 
-// The tags let a dashboard overlay rollout steps on crash-free rate (event:advanced) and let a monitor alert on
-// event:halted or event:error. A monitor on event:ready_to_publish, after a quiet period, tells you that a release has
-// been sitting approved while nobody pressed publish.
+// The tags let a dashboard overlay rollout steps on crash-free rate (type:rollout.advanced) and let a monitor alert on
+// type:rollout.halted or type:run.failed. A monitor on type:release.readyToPublish, after a quiet period, tells you that
+// a release has been sitting approved while nobody pressed publish.

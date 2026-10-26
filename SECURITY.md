@@ -14,7 +14,7 @@ Rampguard runs inside your GitHub Actions workflow with two secrets:
 |---|---|---|
 | Play service-account key | Reading the production track; changing the rollout fraction, halting and completing the live release. | Give the service account access to this app only, with *View app information* and *Release to production*. Never grant it account-level permissions. |
 | Slack webhook URL | Posting messages to one channel. | Create the webhook for a channel that is fine with release notices. |
-| Webhook URL, secret and header values (optional) | Posting release events to your own endpoint, or to a vendor API through a header such as an API key. | Use a key scoped to writing events or annotations only. Verify the `X-Rampguard-Signature` header at the receiver. |
+| Webhook URL, signing secret and header values (optional) | Posting release events to your own endpoint, or to a vendor API through a header such as an API key. | Use a key scoped to writing events or annotations only. Verify the `X-Rampguard-Signature` header at the receiver. Write every secret as `${NAME}` in the configuration, never as a value. |
 
 The action writes the key to a mode-600 file in the runner's temporary directory for the duration of the run and
 deletes it afterwards. The key, the webhook URLs, the webhook secret and header values never appear in logs, the job

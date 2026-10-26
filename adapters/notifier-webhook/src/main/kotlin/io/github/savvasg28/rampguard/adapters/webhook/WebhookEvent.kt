@@ -5,25 +5,32 @@ import io.github.savvasg28.rampguard.core.model.RolloutEvent
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.time.Instant
+import kotlin.math.roundToLong
 
 /**
- * The JSON document a webhook receiver gets, one per event. Field names and the `event` values are a contract for
- * receivers: add fields, never rename. Every document has every key; a value that does not apply is `null`.
+ * The JSON document a webhook receiver gets, one per event. `type` names what happened; the object named after the
+ * subject (`rollout`, `halt`, `failure`) carries the details, and is present only on the types that have it. Field
+ * names and `type` values are a contract for receivers: add fields, never rename.
  *
- * `event` is one of `advanced`, `completed`, `halted`, `ready_to_publish`, `rejected`, `error`.
+ * | `type` | Present |
+ * |---|---|
+ * | `rollout.advanced` | `release`, `rollout.fromPercent`, `rollout.toPercent` |
+ * | `rollout.completed` | `release`, `rollout.fromPercent`, `rollout.toPercent` (100) |
+ * | `rollout.halted` | `release`, `halt.reason`, `halt.source` |
+ * | `release.readyToPublish` | `release` |
+ * | `release.rejected` | `release` |
+ * | `run.failed` | `failure.message` |
  */
 @Serializable
 data class WebhookEvent(
-    val event: String,
+    val type: String,
     val app: String,
-    val at: String,
-    val run: String?,
+    val occurredAt: String,
+    val workflowRun: String? = null,
     val release: Release? = null,
-    val from: Double? = null,
-    val to: Double? = null,
-    val reason: String? = null,
-    val source: String? = null,
-    val message: String? = null,
+    val rollout: Rollout? = null,
+    val halt: Halt? = null,
+    val failure: Failure? = null,
 ) {
     @Serializable
     data class Release(
@@ -31,50 +38,68 @@ data class WebhookEvent(
         val versionCodes: List<Long>,
     )
 
+    /** Percentages as in the configuration's `stages`: `5` for a 5% rollout, not `0.05`. */
+    @Serializable
+    data class Rollout(
+        val fromPercent: Double,
+        val toPercent: Double,
+    )
+
+    @Serializable
+    data class Halt(
+        val reason: String,
+        val source: String,
+    )
+
+    @Serializable
+    data class Failure(
+        val message: String,
+    )
+
     fun toJson(): String = json.encodeToString(serializer(), this)
 
     companion object {
-        private val json =
-            Json {
-                encodeDefaults = true
-                explicitNulls = true
-            }
+        private val json = Json { explicitNulls = false }
+        private const val PERCENT = 100.0
+        private const val CENTI = 100.0
 
         fun of(
             app: String,
             event: RolloutEvent,
             at: Instant,
-            run: String?,
+            workflowRun: String?,
         ): WebhookEvent {
-            val time = at.toString()
+            fun document(
+                type: String,
+                release: ReleaseId? = null,
+                rollout: Rollout? = null,
+                halt: Halt? = null,
+                failure: Failure? = null,
+            ) = WebhookEvent(type, app, at.toString(), workflowRun, release?.dto(), rollout, halt, failure)
+
             return when (event) {
                 is RolloutEvent.Advanced ->
-                    WebhookEvent(
-                        "advanced",
-                        app,
-                        time,
-                        run,
-                        event.release.dto(),
-                        from = event.fromFraction,
-                        to = event.toFraction,
+                    document(
+                        "rollout.advanced",
+                        event.release,
+                        Rollout(percent(event.fromFraction), percent(event.toFraction)),
                     )
                 is RolloutEvent.Completed ->
-                    WebhookEvent("completed", app, time, run, event.release.dto(), from = event.fromFraction, to = 1.0)
+                    document("rollout.completed", event.release, Rollout(percent(event.fromFraction), PERCENT))
                 is RolloutEvent.Halted ->
-                    WebhookEvent(
-                        "halted",
-                        app,
-                        time,
-                        run,
-                        event.release.dto(),
-                        reason = event.reason,
-                        source = event.source,
+                    document(
+                        "rollout.halted",
+                        event.release,
+                        halt = Halt(event.reason, event.source),
                     )
-                is RolloutEvent.ReadyToPublish -> WebhookEvent("ready_to_publish", app, time, run, event.release.dto())
-                is RolloutEvent.Rejected -> WebhookEvent("rejected", app, time, run, event.release.dto())
-                is RolloutEvent.GuardError -> WebhookEvent("error", app, time, run, message = event.message)
+                is RolloutEvent.ReadyToPublish -> document("release.readyToPublish", event.release)
+                is RolloutEvent.Rejected -> document("release.rejected", event.release)
+                is RolloutEvent.GuardError -> document("run.failed", failure = Failure(event.message))
             }
         }
+
+        /** `0.2` becomes `20.0`. Two-decimal rounding stops binary fractions printing as `20.000000000000004`. */
+        private fun percent(fraction: Double): Double = (fraction * PERCENT * CENTI).roundToLong() / CENTI
 
         private fun ReleaseId.dto() = Release(name, versionCodes)
     }

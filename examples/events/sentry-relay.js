@@ -15,11 +15,11 @@ export default {
     if (request.method !== "POST") return new Response("POST only", { status: 405 });
     const doc = await verifyRampguard(request, env.RAMPGUARD_WEBHOOK_SECRET);
     if (!doc) return new Response("bad signature", { status: 401 });
-    if (!doc.release || !["advanced", "completed", "halted"].includes(doc.event)) return new Response("ignored");
+    if (!["rollout.advanced", "rollout.completed", "rollout.halted"].includes(doc.type)) return new Response("ignored");
 
     const headers = { "Content-Type": "application/json", Authorization: `Bearer ${env.SENTRY_TOKEN}` };
     const base = `${env.SENTRY_URL}/api/0/organizations/${env.SENTRY_ORG}`;
-    const stage = doc.event === "halted" ? "halted" : Math.round(doc.to * 100) + "%";
+    const stage = doc.type === "rollout.halted" ? "halted" : `${doc.rollout.toPercent}%`;
 
     for (const code of doc.release.versionCodes) {
       const version = `${doc.app}@${doc.release.name}+${code}`;
@@ -37,9 +37,9 @@ export default {
         body: JSON.stringify({
           environment: env.SENTRY_ENVIRONMENT || "production",
           name: `Rollout ${stage}`,
-          url: doc.run || undefined,
-          dateStarted: doc.at,
-          dateFinished: doc.at,
+          url: doc.workflowRun || undefined,
+          dateStarted: doc.occurredAt,
+          dateFinished: doc.occurredAt,
         }),
       });
       if (!deploy.ok) return new Response(`sentry ${deploy.status}`, { status: 502 });

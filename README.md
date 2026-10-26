@@ -46,6 +46,9 @@ already alert from; they tell Rampguard to halt.
      information* and *Release to production* permissions.
    - `SLACK_WEBHOOK_URL`: optional. An incoming-webhook URL for notifications.
    - `RAMPGUARD_WEBHOOK_URL`: optional. A URL that receives one JSON document per event, for your own tooling.
+
+   The workflows pass these secrets to Rampguard as environment variables, and the configuration refers to them as
+   `${NAME}`.
 2. Copy [`examples/workflows/rollout-tick.yml`](examples/workflows/rollout-tick.yml) and
    [`examples/workflows/rollout-command.yml`](examples/workflows/rollout-command.yml) into `.github/workflows/`.
 3. In both workflow files, set the concurrency group to your package name.
@@ -66,33 +69,46 @@ tick workflow in the Actions tab.
 app: com.example.app
 stages: [1, 5, 20, 50, 100]
 notify:
-  slackWebhookEnv: SLACK_WEBHOOK_URL
-  webhook:
-    urlEnv: RAMPGUARD_WEBHOOK_URL
-    secretEnv: RAMPGUARD_WEBHOOK_SECRET
+  - slack: ${SLACK_WEBHOOK_URL}
+  - webhook:
+      url: ${RAMPGUARD_WEBHOOK_URL}
+      signWith: ${RAMPGUARD_WEBHOOK_SECRET}
 ```
 
 | Key | Required | Meaning |
 |---|---|---|
 | `app` | yes | The application package name. |
 | `stages` | yes | Rollout percentages, strictly increasing, ending in 100. You set the first stage when you publish the release; Rampguard owns every stage after it. |
-| `notify.slackWebhookEnv` | no | The name of the environment variable that holds the Slack webhook URL. |
-| `notify.webhook.urlEnv` | no | The name of the environment variable that holds a URL to `POST` one JSON document per event to. |
-| `notify.webhook.secretEnv` | no | The name of the environment variable that holds a shared secret. When set, each request carries `X-Rampguard-Signature: sha256=<HMAC-SHA256 of the body>`. |
-| `notify.webhook.headersEnv` | no | Extra request headers, header name to the name of the environment variable that holds the value. Values are never written in the file, so an API key stays a secret. |
+| `notify` | no | A list of destinations. Every destination receives every event. Without it, events go to the job log and the job summary only. |
+| `notify[].slack` | | A Slack incoming-webhook URL. The event becomes a short message. |
+| `notify[].webhook.url` | | Any HTTP endpoint. The event becomes a JSON document, `POST`ed as `application/json`. |
+| `notify[].webhook.signWith` | no | A shared secret. When set, each request carries `X-Rampguard-Signature: sha256=<HMAC-SHA256 of the body>`. |
+| `notify[].webhook.headers` | no | Extra request headers, for API keys and routing. |
 
-Without a `notify` block, events go to the job log and the job summary only. Unknown keys are rejected, so a typo fails
-the job before any API call.
+A value written as `${NAME}` is read from the environment variable `NAME` when Rampguard runs, so no secret is ever in
+the file. Any other value is used as written. A destination whose variable is not set is skipped, and the job log says
+which variable. Unknown keys are rejected, so a typo fails the job before any API call.
 
-The webhook document looks like this. The field names and the `event` values are a contract: fields are added, never
-renamed.
+The webhook document names what happened in `type` and puts the details in an object named after the subject. The field
+names and `type` values are a contract: fields are added, never renamed.
 
 ```json
-{"event": "advanced", "app": "com.example.app",
- "at": "2026-10-28T09:17:41Z", "run": "https://github.com/acme/app/actions/runs/123",
+{"type": "rollout.advanced",
+ "app": "com.example.app",
  "release": {"name": "5.25.0", "versionCodes": [52500]},
- "from": 0.05, "to": 0.2, "reason": null, "source": null, "message": null}
+ "rollout": {"fromPercent": 5, "toPercent": 20},
+ "occurredAt": "2026-10-28T09:17:41Z",
+ "workflowRun": "https://github.com/acme/app/actions/runs/123"}
 ```
+
+| `type` | Also present |
+|---|---|
+| `rollout.advanced` | `release`, `rollout.fromPercent`, `rollout.toPercent` |
+| `rollout.completed` | `release`, `rollout` with `toPercent` 100 |
+| `rollout.halted` | `release`, `halt.reason`, `halt.source` |
+| `release.readyToPublish` | `release` |
+| `release.rejected` | `release` |
+| `run.failed` | `failure.message` |
 
 Recipes that relay these events to Datadog, Sentry and Grafana are in [`examples/events/`](examples/events/README.md).
 

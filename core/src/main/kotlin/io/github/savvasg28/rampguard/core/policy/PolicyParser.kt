@@ -56,14 +56,9 @@ object PolicyParser {
             } catch (e: UnknownPropertyException) {
                 return PolicyResult.Invalid(listOf(unknownProperty(e)))
             } catch (e: YamlException) {
-                return PolicyResult.Invalid(
-                    listOf(
-                        ConfigError(
-                            e.path.toHumanReadableString().ifBlank { "<root>" },
-                            e.message ?: "invalid YAML",
-                        ),
-                    ),
-                )
+                val path = e.path.toHumanReadableString().ifBlank { "<root>" }
+                val hint = if (path == "notify") NOTIFY_HINT else ""
+                return PolicyResult.Invalid(listOf(ConfigError(path, (e.message ?: "invalid YAML") + hint)))
             } catch (e: SerializationException) {
                 return PolicyResult.Invalid(listOf(ConfigError("<root>", e.message ?: "invalid configuration")))
             }
@@ -83,4 +78,7 @@ object PolicyParser {
 
     private val REMOVED_KEYS =
         setOf("gates", "windowHours", "minSoakHours", "blackout", "guardErrorAfterFailures", "mode")
+
+    private const val NOTIFY_HINT =
+        " (notify is a list of destinations, for example '- slack: \${SLACK_WEBHOOK_URL}'; see the README)"
 }

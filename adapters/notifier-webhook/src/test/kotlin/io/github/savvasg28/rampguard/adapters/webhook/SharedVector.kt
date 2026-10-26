@@ -4,8 +4,7 @@ package io.github.savvasg28.rampguard.adapters.webhook
 object SharedVector {
     const val SECRET = "shared-test-secret"
     const val BODY =
-        """{"event":"advanced","app":"com.example.app","at":"2026-03-02T09:00:00Z","run":null,""" +
-            """"release":{"name":"5.25.0","versionCodes":[52500]},""" +
-            """"from":0.05,"to":0.2,"reason":null,"source":null,"message":null}"""
-    const val SIGNATURE = "sha256=339b8b19441cd4e36b380b069e51461b1401f9a2cf18a43bf07e53140f86e3e6"
+        """{"type":"rollout.advanced","app":"com.example.app","occurredAt":"2026-03-02T09:00:00Z",""" +
+            """"release":{"name":"5.25.0","versionCodes":[52500]},"rollout":{"fromPercent":5.0,"toPercent":20.0}}"""
+    const val SIGNATURE = "sha256=5bb177d1f1da59f0ba43406d616847d19ad3d67fd6b0ded263c221b31b57c58e"
 }

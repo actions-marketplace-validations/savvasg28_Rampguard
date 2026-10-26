@@ -35,7 +35,7 @@ class WebhookNotifierTest {
     )
 
     @Test
-    fun `posts the event document with every key present`() =
+    fun `posts a typed document with only the objects that apply`() =
         runBlocking<Unit> {
             server.enqueue(MockResponse().setResponseCode(200))
 
@@ -45,36 +45,34 @@ class WebhookNotifierTest {
             request.getHeader("Content-Type") shouldBe "application/json"
             request.getHeader("User-Agent") shouldBe "rampguard"
             val body = Json.parseToJsonElement(request.body.readUtf8()).jsonObject
-            body.keys shouldBe
-                setOf("event", "app", "at", "run", "release", "from", "to", "reason", "source", "message")
-            body["event"]!!.jsonPrimitive.content shouldBe "advanced"
-            body["from"]!!.jsonPrimitive.content shouldBe "0.05"
-            body["to"]!!.jsonPrimitive.content shouldBe "0.2"
-            body["at"]!!.jsonPrimitive.content shouldBe "2026-03-02T09:00:00Z"
+            body.keys shouldBe setOf("type", "app", "occurredAt", "workflowRun", "release", "rollout")
+            body["type"]!!.jsonPrimitive.content shouldBe "rollout.advanced"
+            body["rollout"]!!.jsonObject["fromPercent"]!!.jsonPrimitive.content shouldBe "5.0"
+            body["rollout"]!!.jsonObject["toPercent"]!!.jsonPrimitive.content shouldBe "20.0"
+            body["occurredAt"]!!.jsonPrimitive.content shouldBe "2026-03-02T09:00:00Z"
             body["release"]!!.jsonObject["versionCodes"].toString() shouldBe "[52500]"
-            body["reason"].toString() shouldBe "null"
         }
 
     @Test
-    fun `every event kind maps to its name`() {
+    fun `every event kind maps to a type and its detail object`() {
         val at = Fixtures.monday9
         WebhookEvent.of("a", RolloutEvent.Completed(release, 0.5), at, null).let {
-            it.event shouldBe "completed"
-            it.to shouldBe
-                1.0
+            it.type shouldBe "rollout.completed"
+            it.rollout shouldBe WebhookEvent.Rollout(50.0, 100.0)
         }
-        WebhookEvent.of("a", RolloutEvent.Halted(release, "r", "sentry"), at, null).let {
-            it.event shouldBe "halted"
-            it.source shouldBe
-                "sentry"
+        WebhookEvent.of("a", RolloutEvent.Halted(release, "crash spike", "sentry"), at, null).let {
+            it.type shouldBe "rollout.halted"
+            it.halt shouldBe WebhookEvent.Halt("crash spike", "sentry")
+            it.rollout shouldBe null
         }
-        WebhookEvent.of("a", RolloutEvent.ReadyToPublish(release), at, null).event shouldBe "ready_to_publish"
-        WebhookEvent.of("a", RolloutEvent.Rejected(release), at, null).event shouldBe "rejected"
+        WebhookEvent.of("a", RolloutEvent.ReadyToPublish(release), at, null).type shouldBe "release.readyToPublish"
+        WebhookEvent.of("a", RolloutEvent.Rejected(release), at, null).type shouldBe "release.rejected"
         WebhookEvent.of("a", RolloutEvent.GuardError("boom"), at, null).let {
-            it.event shouldBe "error"
-            it.message shouldBe
-                "boom"
+            it.type shouldBe "run.failed"
+            it.failure shouldBe WebhookEvent.Failure("boom")
             it.release shouldBe null
+            it.toJson() shouldBe
+                """{"type":"run.failed","app":"a","occurredAt":"2026-03-02T09:00:00Z","failure":{"message":"boom"}}"""
         }
     }
 

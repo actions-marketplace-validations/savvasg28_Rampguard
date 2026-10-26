@@ -1,6 +1,6 @@
 # Event recipes
 
-Rampguard posts one JSON document per event to the URL in `notify.webhook`. This page shows how to turn those documents
+Rampguard posts one JSON document per event to each `webhook` destination in `notify`. This page shows how to turn those documents
 into records in the tools that already hold your release and crash data: Datadog events, Sentry releases and Grafana
 annotations. Each recipe is a relay, a small function that receives the document, verifies the signature and calls the
 vendor API. Datadog also works without a relay, through log intake.
@@ -10,27 +10,28 @@ For halting a rollout from these tools, see [`examples/halt/`](../halt/README.md
 ## The document
 
 ```json
-{"event": "advanced", "app": "com.example.app",
- "at": "2026-10-28T09:17:41Z", "run": "https://github.com/acme/app/actions/runs/123",
+{"type": "rollout.advanced",
+ "app": "com.example.app",
  "release": {"name": "5.25.0", "versionCodes": [52500]},
- "from": 0.05, "to": 0.2, "reason": null, "source": null, "message": null}
+ "rollout": {"fromPercent": 5, "toPercent": 20},
+ "occurredAt": "2026-10-28T09:17:41Z",
+ "workflowRun": "https://github.com/acme/app/actions/runs/123"}
 ```
 
-| Field | Meaning |
+| `type` | Also present |
 |---|---|
-| `event` | `advanced`, `completed`, `halted`, `ready_to_publish`, `rejected` or `error`. |
-| `release` | `name` and `versionCodes`. Null for `error`. |
-| `from`, `to` | Rollout fractions, `0.2` for 20%. Set for `advanced` and `completed`. |
-| `reason`, `source` | Set for `halted`. |
-| `message` | Set for `error`. |
-| `at` | When the run happened. |
-| `run` | The GitHub Actions run, or null when Rampguard runs elsewhere. |
+| `rollout.advanced` | `release`, `rollout.fromPercent`, `rollout.toPercent` |
+| `rollout.completed` | `release`, `rollout` with `toPercent` 100 |
+| `rollout.halted` | `release`, `halt.reason`, `halt.source` |
+| `release.readyToPublish` | `release` |
+| `release.rejected` | `release` |
+| `run.failed` | `failure.message` |
 
-Every document has every key; absent values are `null`. Fields are added, never renamed.
+`workflowRun` is present inside GitHub Actions. A field that does not apply is absent. Fields are added, never renamed.
 
 ## The signature
 
-When `notify.webhook.secretEnv` names a secret, each request carries
+When a webhook destination has `signWith`, each request carries
 `X-Rampguard-Signature: sha256=<hex HMAC-SHA256 of the raw body>`. A relay must verify this header before it calls a
 vendor API, otherwise anyone who finds the relay URL can write to your Datadog, Sentry or Grafana. The recipes share
 one verification function, [`verify.js`](verify.js). Its test, [`verify.test.js`](verify.test.js), checks the same
@@ -41,13 +42,13 @@ signed body that Rampguard's own test suite produces, so the two sides cannot dr
 
 ```yaml
 notify:
-  webhook:
-    urlEnv: RAMPGUARD_WEBHOOK_URL
-    secretEnv: RAMPGUARD_WEBHOOK_SECRET
+  - webhook:
+      url: ${RAMPGUARD_WEBHOOK_URL}
+      signWith: ${RAMPGUARD_WEBHOOK_SECRET}
 ```
 
-Set `RAMPGUARD_WEBHOOK_URL` to the relay URL and `RAMPGUARD_WEBHOOK_SECRET` to a random string. The relay holds the
-same secret plus the vendor API key. Rampguard never sees the vendor key.
+Set the `RAMPGUARD_WEBHOOK_URL` secret to the relay URL and `RAMPGUARD_WEBHOOK_SECRET` to a random string. The relay
+holds the same secret plus the vendor API key. Rampguard never sees the vendor key.
 
 ## Recipes
 

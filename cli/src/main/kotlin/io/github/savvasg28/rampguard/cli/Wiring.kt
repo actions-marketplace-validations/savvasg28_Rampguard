@@ -3,9 +3,6 @@ package io.github.savvasg28.rampguard.cli
 import io.github.savvasg28.rampguard.adapters.play.GoogleCredentialsTokenProvider
 import io.github.savvasg28.rampguard.adapters.play.PlayHttp
 import io.github.savvasg28.rampguard.adapters.play.publisher.PlayPublisherGateway
-import io.github.savvasg28.rampguard.adapters.slack.SlackNotifier
-import io.github.savvasg28.rampguard.adapters.webhook.WebhookNotifier
-import io.github.savvasg28.rampguard.adapters.webhook.WebhookTarget
 import io.github.savvasg28.rampguard.core.policy.Policy
 import io.github.savvasg28.rampguard.core.ports.AuditLog
 import io.github.savvasg28.rampguard.core.ports.Clock
@@ -47,8 +44,8 @@ fun interface WiringFactory {
 
 /**
  * Production wiring. Play credentials come from Application Default Credentials (`GOOGLE_APPLICATION_CREDENTIALS`
- * or Workload Identity Federation). Webhook URLs, secrets and header values are read from the environment variables the
- * policy names and are never printed. The audit goes to stdout and, inside GitHub Actions, to the job summary.
+ * or Workload Identity Federation). [Destinations] builds each `notify` destination; one whose environment variable is
+ * not set is skipped with a line on stdout. The audit goes to stdout and, inside GitHub Actions, to the job summary.
  */
 object DefaultWiring : WiringFactory {
     override fun create(
@@ -63,28 +60,22 @@ object DefaultWiring : WiringFactory {
                 throw CredentialsMissingException(e)
             }
         val http = PlayHttp(credentials)
-        val slack =
-            policy.notify.slackWebhookEnv
-                ?.let {
-                    env[it]
-                }?.takeIf { it.isNotBlank() }
-                ?.let { SlackNotifier(it, policy.app.packageName) }
         val clock = Clock { Instant.now() }
-        val webhook =
-            policy.notify.webhook?.let { config ->
-                env[config.urlEnv]?.takeIf { it.isNotBlank() }?.let { url ->
-                    val target =
-                        WebhookTarget(
-                            url = url,
-                            headers = config.headersEnv.mapValues { (_, envVar) -> env[envVar].orEmpty() },
-                            secret = config.secretEnv?.let(env::get),
-                        )
-                    WebhookNotifier(target, policy.app.packageName, GitHubActions.runUrl(env), clock)
+        val notifiers =
+            policy.notify.mapIndexedNotNull { index, destination ->
+                Destinations.notifier(
+                    destination,
+                    policy.app.packageName,
+                    GitHubActions.runUrl(env),
+                    clock,
+                    env,
+                ) { variable ->
+                    out("notify[$index] skipped: environment variable $variable is not set")
                 }
             }
         return Wiring(
             gateway = PlayPublisherGateway(http),
-            notifier = CompositeNotifier(listOfNotNull(StdoutNotifier(out), slack, webhook)),
+            notifier = CompositeNotifier(listOf(StdoutNotifier(out)) + notifiers),
             audit = CompositeAuditLog(listOf(StdoutAuditLog(out), JobSummaryAuditLog(GitHubActions.summaryFile(env)))),
             clock = clock,
         )

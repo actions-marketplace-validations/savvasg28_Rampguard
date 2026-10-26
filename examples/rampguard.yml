@@ -1,10 +1,10 @@
 # Rampguard policy. Lives at .github/rampguard.yml in the app repository.
 app: com.example.app
 stages: [1, 5, 20, 50, 100]    # percent; the first is set by a human at submission, the last must be 100
-notify:                        # optional; without it, events go to the job log and summary only
-  slackWebhookEnv: SLACK_WEBHOOK_URL  # name of the secret/env var holding the incoming webhook URL
-  # webhook:                           # one JSON document per event, see examples/events/
-  #   urlEnv: RAMPGUARD_WEBHOOK_URL
-  #   secretEnv: RAMPGUARD_WEBHOOK_SECRET   # optional, signs the body
-  #   headersEnv:                           # optional; header name to the env var that holds its value
-  #     DD-API-KEY: DD_API_KEY
+notify:                        # optional; every destination receives every event. ${NAME} is read from the environment
+  - slack: ${SLACK_WEBHOOK_URL}
+  # - webhook:                 # one JSON document per event, see examples/events/
+  #     url: ${RAMPGUARD_WEBHOOK_URL}
+  #     signWith: ${RAMPGUARD_WEBHOOK_SECRET}   # optional, adds X-Rampguard-Signature
+  #     headers:                               # optional
+  #       DD-API-KEY: ${DD_API_KEY}
