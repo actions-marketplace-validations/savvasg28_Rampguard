@@ -45,6 +45,7 @@ already alert from; they tell Rampguard to halt.
    - `PLAY_SERVICE_ACCOUNT_JSON`: the JSON key of a Play service account that can see this app only, with *View app
      information* and *Release to production* permissions.
    - `SLACK_WEBHOOK_URL`: optional. An incoming-webhook URL for notifications.
+   - `RAMPGUARD_WEBHOOK_URL`: optional. A URL that receives one JSON document per event, for your own tooling.
 2. Copy [`examples/workflows/rollout-tick.yml`](examples/workflows/rollout-tick.yml) and
    [`examples/workflows/rollout-command.yml`](examples/workflows/rollout-command.yml) into `.github/workflows/`.
 3. In both workflow files, set the concurrency group to your package name.
@@ -66,15 +67,36 @@ app: com.example.app
 stages: [1, 5, 20, 50, 100]
 notify:
   slackWebhookEnv: SLACK_WEBHOOK_URL
+  webhook:
+    urlEnv: RAMPGUARD_WEBHOOK_URL
+    secretEnv: RAMPGUARD_WEBHOOK_SECRET
+    headers:
+      X-Source: rampguard
 ```
 
 | Key | Required | Meaning |
 |---|---|---|
 | `app` | yes | The application package name. |
 | `stages` | yes | Rollout percentages, strictly increasing, ending in 100. You set the first stage when you publish the release; Rampguard owns every stage after it. |
-| `notify.slackWebhookEnv` | no | The name of the environment variable that holds the Slack webhook URL. Without it, events go to the job log and the job summary only. |
+| `notify.slackWebhookEnv` | no | The name of the environment variable that holds the Slack webhook URL. |
+| `notify.webhook.urlEnv` | no | The name of the environment variable that holds a URL to `POST` one JSON document per event to. |
+| `notify.webhook.secretEnv` | no | The name of the environment variable that holds a shared secret. When set, each request carries `X-Rampguard-Signature: sha256=<HMAC-SHA256 of the body>`. |
+| `notify.webhook.headers` | no | Extra request headers. A value of the form `env:NAME` is read from that environment variable, so API keys stay in secrets. |
 
-Unknown keys are rejected, so a typo fails the job before any API call.
+Without a `notify` block, events go to the job log and the job summary only. Unknown keys are rejected, so a typo fails
+the job before any API call.
+
+The webhook document looks like this. The field names and the `event` values are a contract: fields are added, never
+renamed.
+
+```json
+{"schema": 1, "event": "advanced", "app": "com.example.app",
+ "release": {"name": "5.25.0", "versionCodes": [52500]},
+ "from": 0.05, "to": 0.2, "reason": null, "source": null, "message": null,
+ "at": "2026-10-28T09:17:41Z", "run": "https://github.com/acme/app/actions/runs/123"}
+```
+
+Recipes that relay these events to Datadog, Sentry and Grafana are in [`examples/events/`](examples/events/README.md).
 
 Because a run steps whatever release is live, publish a new release after the morning run. A release published minutes
 before the run gets its first step minutes later.

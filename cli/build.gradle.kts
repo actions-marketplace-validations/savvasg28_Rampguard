@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":adapters:play"))
     implementation(project(":adapters:notifier-slack"))
+    implementation(project(":adapters:notifier-webhook"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.clikt)

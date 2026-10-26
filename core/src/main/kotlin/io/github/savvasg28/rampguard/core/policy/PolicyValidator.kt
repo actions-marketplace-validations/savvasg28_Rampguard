@@ -16,15 +16,29 @@ internal object PolicyValidator {
 
         if (file.app.isBlank()) error("app", "must be the application package name")
         validateStages(file.stages, ::error)
+        val webhook = file.notify?.webhook?.let { validateWebhook(it, ::error) }
 
         if (errors.isNotEmpty()) return PolicyResult.Invalid(errors)
         return PolicyResult.Valid(
             Policy(
                 app = AppId(file.app.trim()),
                 stages = file.stages,
-                notify = NotifyConfig(file.notify?.slackWebhookEnv),
+                notify = NotifyConfig(slackWebhookEnv = file.notify?.slackWebhookEnv, webhook = webhook),
             ),
         )
+    }
+
+    private val headerName = Regex("^[A-Za-z0-9!#$%&'*+.^_`|~-]+$")
+
+    private fun validateWebhook(
+        file: WebhookFile,
+        error: (String, String) -> Unit,
+    ): WebhookConfig {
+        if (file.urlEnv.isBlank()) error("notify.webhook.urlEnv", "must name the environment variable holding the URL")
+        file.headers.keys.filterNot { headerName.matches(it) }.forEach {
+            error("notify.webhook.headers", "'$it' is not a valid header name")
+        }
+        return WebhookConfig(file.urlEnv.trim(), file.secretEnv?.trim()?.ifBlank { null }, file.headers)
     }
 
     private fun validateStages(

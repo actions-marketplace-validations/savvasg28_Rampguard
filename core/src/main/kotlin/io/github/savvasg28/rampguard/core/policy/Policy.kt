@@ -33,5 +33,20 @@ data class Policy(
 }
 
 data class NotifyConfig(
-    val slackWebhookEnv: String?,
+    val slackWebhookEnv: String? = null,
+    val webhook: WebhookConfig? = null,
+)
+
+/**
+ * A generic JSON webhook for every event.
+ *
+ * @property urlEnv name of the environment variable that holds the URL
+ * @property secretEnv name of the environment variable that holds the HMAC secret; when set, each request carries an
+ *   `X-Rampguard-Signature: sha256=<hex>` header over the body
+ * @property headers extra request headers; a value of the form `env:NAME` is read from that environment variable
+ */
+data class WebhookConfig(
+    val urlEnv: String,
+    val secretEnv: String?,
+    val headers: Map<String, String>,
 )

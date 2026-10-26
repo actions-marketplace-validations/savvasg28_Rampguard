@@ -78,6 +78,26 @@ Each run sends one message per event: a step, a completion, a halt, a release wa
 or a Play failure. Rampguard sends no message for "nothing to do". Because runs keep no memory, a release that waits
 for a person is reported on every run that sees it.
 
+Every event goes to the job log and the job summary. A Slack webhook receives it as text. A generic webhook receives it
+as one JSON document per event:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `schema` | number | The document version, currently `1`. It changes only if a field is renamed or removed, which this contract forbids. |
+| `event` | string | `advanced`, `completed`, `halted`, `ready_to_publish`, `rejected` or `error`. |
+| `app` | string | The package name. |
+| `release` | object or null | `name` and `versionCodes` of the release. Null for `error`. |
+| `from`, `to` | number or null | Rollout fractions, `0.05` for 5%. Set for `advanced` and `completed`. |
+| `reason`, `source` | string or null | Set for `halted`: the sanitised reason and sender of the halt. |
+| `message` | string or null | Set for `error`: the failure, without secrets. |
+| `at` | string | ISO 8601 instant of the run. |
+| `run` | string or null | The GitHub Actions run URL, or null outside Actions. |
+
+The request is a `POST` with `Content-Type: application/json`, the headers from the configuration, and, when a secret
+is configured, `X-Rampguard-Signature: sha256=<hex HMAC-SHA256 of the body>`. Receivers that need another shape sit
+behind a small relay; `examples/events/` has three. A notifier failure is logged and never fails the run, because the
+Play write has already happened by then.
+
 ## Architecture
 
 ```
@@ -90,7 +110,7 @@ rampguard
   cli/       command-line entry points, config loading, adapter wiring
   core/      RolloutRunner ─▶ Engine.decide(policy, observation)
              ports: PlayGateway, Notifier, AuditLog, Clock
-  adapters/  play (Android Publisher API), notifier-slack
+  adapters/  play (Android Publisher API), notifier-slack, notifier-webhook
 ```
 
 The modules follow three rules:
@@ -112,8 +132,13 @@ writes ([ADR 0009](adr/0009-play-adapters.md)).
 ```yaml
 app: com.example.app
 stages: [1, 5, 20, 50, 100]
-notify:
-  slackWebhookEnv: SLACK_WEBHOOK_URL   # optional
+notify:                                # optional
+  slackWebhookEnv: SLACK_WEBHOOK_URL
+  webhook:
+    urlEnv: RAMPGUARD_WEBHOOK_URL
+    secretEnv: RAMPGUARD_WEBHOOK_SECRET  # optional, enables X-Rampguard-Signature
+    headers:                             # optional; env:NAME reads the value from the environment
+      DD-API-KEY: env:DD_API_KEY
 ```
 
 Validation is strict. Unknown keys fail the job before any API call. Keys from earlier designs (`gates`,
@@ -136,4 +161,5 @@ Validation is strict. Unknown keys fail the job before any API call. Keys from e
   permissions. A dry run needs the same permissions, because nothing in Play distinguishes it until the write.
 - Anyone whose token can send `repository_dispatch` to the repository can halt the rollout. Use a fine-grained token
   per sender.
-- Secrets never appear in logs, audit output, job summaries or tests. Tests assert this for the Slack webhook URL.
+- Secrets never appear in logs, audit output, job summaries or tests. Tests assert this for the Slack webhook URL and
+  for the generic webhook URL, headers and secret.

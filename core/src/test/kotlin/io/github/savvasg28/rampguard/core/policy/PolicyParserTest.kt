@@ -40,6 +40,28 @@ class PolicyParserTest {
     }
 
     @Test
+    fun `a webhook block is parsed with its headers and validated`() {
+        val yaml =
+            minimal +
+                "notify:\n  webhook:\n    urlEnv: HOOK_URL\n    secretEnv: HOOK_SECRET\n" +
+                "    headers:\n      DD-API-KEY: env:DD_API_KEY\n      X-Source: rampguard\n"
+        val webhook =
+            PolicyParser
+                .parse(yaml)
+                .policyOrThrow()
+                .notify.webhook!!
+        webhook.urlEnv shouldBe "HOOK_URL"
+        webhook.secretEnv shouldBe "HOOK_SECRET"
+        webhook.headers shouldBe mapOf("DD-API-KEY" to "env:DD_API_KEY", "X-Source" to "rampguard")
+
+        invalid(minimal + "notify:\n  webhook:\n    urlEnv: ' '\n").single() shouldContain "notify.webhook.urlEnv"
+        invalid(
+            minimal + "notify:\n  webhook:\n    urlEnv: U\n    headers:\n      'bad header': x\n",
+        ).single() shouldContain
+            "'bad header' is not a valid header name"
+    }
+
+    @Test
     fun `unknown keys are rejected`() {
         val errors = invalid(minimal + "mod: enforce\n")
         errors shouldHaveSize 1

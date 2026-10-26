@@ -10,3 +10,4 @@ stable. A gap in the numbering means that record was retired.
 | [0010](0010-scheduled-rollouts-with-external-brakes.md) | Scheduled rollouts with external brakes; no vitals | Accepted. Holds and the soak timer were removed by 0011. |
 | [0011](0011-stateless-the-cron-is-the-schedule.md) | Stateless: the cron is the schedule | Accepted. The `mode` key was removed by 0012. |
 | [0012](0012-dry-run-is-a-flag-not-a-mode.md) | Dry run is a flag, not a configuration mode | Accepted |
+| [0013](0013-events-leave-through-one-webhook.md) | Events leave through one generic webhook | Accepted |

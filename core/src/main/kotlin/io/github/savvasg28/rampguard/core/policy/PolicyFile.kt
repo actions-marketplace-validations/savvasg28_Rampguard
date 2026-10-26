@@ -16,4 +16,12 @@ internal data class PolicyFile(
 @Serializable
 internal data class NotifyFile(
     val slackWebhookEnv: String? = null,
+    val webhook: WebhookFile? = null,
+)
+
+@Serializable
+internal data class WebhookFile(
+    val urlEnv: String,
+    val secretEnv: String? = null,
+    val headers: Map<String, String> = emptyMap(),
 )
