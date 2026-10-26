@@ -3,9 +3,10 @@
 // Variables: SENTRY_ORG, SENTRY_PROJECT, SENTRY_URL (https://sentry.io or your self-hosted URL).
 //
 // Sentry already knows the release from your build step, which uploads mappings under a release name. This relay adds
-// a deploy to that release on every step, with the environment set to the rollout stage, so Release Health shows when
-// each stage began. The release name must match what the app reports: Android SDKs default to
+// a deploy to that release on every step, named after the stage it reached, so the release page lists when each stage
+// began next to its crash-free rate. The release name must match what the app reports: Android SDKs default to
 // "<packageName>@<versionName>+<versionCode>".
+// Variable: SENTRY_ENVIRONMENT, the environment the app reports in production, usually "production".
 
 import { verifyRampguard } from "./verify.js";
 
@@ -34,7 +35,7 @@ export default {
         method: "POST",
         headers,
         body: JSON.stringify({
-          environment: `production-${stage}`,
+          environment: env.SENTRY_ENVIRONMENT || "production",
           name: `Rollout ${stage}`,
           url: doc.run || undefined,
           dateStarted: doc.at,
@@ -47,6 +48,6 @@ export default {
   },
 };
 
-// With deploys per stage, Sentry's release page lists "production-1%", "production-5%", ... with timestamps, and the
-// Releases view shows crash-free sessions next to each. If a step is followed by a drop, the Sentry issue alert in
-// examples/halt/sentry-relay.js is the way back: it halts the rollout.
+// The release page then lists "Rollout 5%", "Rollout 20%", ... with timestamps under one environment. If a step is
+// followed by a drop in crash-free sessions, the Sentry issue alert in examples/halt/sentry-relay.js is the way back:
+// it halts the rollout.

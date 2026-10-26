@@ -70,8 +70,6 @@ notify:
   webhook:
     urlEnv: RAMPGUARD_WEBHOOK_URL
     secretEnv: RAMPGUARD_WEBHOOK_SECRET
-    headers:
-      X-Source: rampguard
 ```
 
 | Key | Required | Meaning |
@@ -81,7 +79,7 @@ notify:
 | `notify.slackWebhookEnv` | no | The name of the environment variable that holds the Slack webhook URL. |
 | `notify.webhook.urlEnv` | no | The name of the environment variable that holds a URL to `POST` one JSON document per event to. |
 | `notify.webhook.secretEnv` | no | The name of the environment variable that holds a shared secret. When set, each request carries `X-Rampguard-Signature: sha256=<HMAC-SHA256 of the body>`. |
-| `notify.webhook.headers` | no | Extra request headers. A value of the form `env:NAME` is read from that environment variable, so API keys stay in secrets. |
+| `notify.webhook.headersEnv` | no | Extra request headers, header name to the name of the environment variable that holds the value. Values are never written in the file, so an API key stays a secret. |
 
 Without a `notify` block, events go to the job log and the job summary only. Unknown keys are rejected, so a typo fails
 the job before any API call.
@@ -90,10 +88,10 @@ The webhook document looks like this. The field names and the `event` values are
 renamed.
 
 ```json
-{"schema": 1, "event": "advanced", "app": "com.example.app",
+{"event": "advanced", "app": "com.example.app",
+ "at": "2026-10-28T09:17:41Z", "run": "https://github.com/acme/app/actions/runs/123",
  "release": {"name": "5.25.0", "versionCodes": [52500]},
- "from": 0.05, "to": 0.2, "reason": null, "source": null, "message": null,
- "at": "2026-10-28T09:17:41Z", "run": "https://github.com/acme/app/actions/runs/123"}
+ "from": 0.05, "to": 0.2, "reason": null, "source": null, "message": null}
 ```
 
 Recipes that relay these events to Datadog, Sentry and Grafana are in [`examples/events/`](examples/events/README.md).

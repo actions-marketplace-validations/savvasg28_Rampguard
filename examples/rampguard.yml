@@ -6,5 +6,5 @@ notify:                        # optional; without it, events go to the job log 
   # webhook:                           # one JSON document per event, see examples/events/
   #   urlEnv: RAMPGUARD_WEBHOOK_URL
   #   secretEnv: RAMPGUARD_WEBHOOK_SECRET   # optional, signs the body
-  #   headers:                              # optional; env:NAME reads the value from the environment
-  #     X-Source: rampguard
+  #   headersEnv:                           # optional; header name to the env var that holds its value
+  #     DD-API-KEY: DD_API_KEY

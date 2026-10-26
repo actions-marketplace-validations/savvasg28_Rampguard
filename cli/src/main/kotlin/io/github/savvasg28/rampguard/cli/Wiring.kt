@@ -5,6 +5,7 @@ import io.github.savvasg28.rampguard.adapters.play.PlayHttp
 import io.github.savvasg28.rampguard.adapters.play.publisher.PlayPublisherGateway
 import io.github.savvasg28.rampguard.adapters.slack.SlackNotifier
 import io.github.savvasg28.rampguard.adapters.webhook.WebhookNotifier
+import io.github.savvasg28.rampguard.adapters.webhook.WebhookTarget
 import io.github.savvasg28.rampguard.core.policy.Policy
 import io.github.savvasg28.rampguard.core.ports.AuditLog
 import io.github.savvasg28.rampguard.core.ports.Clock
@@ -12,7 +13,6 @@ import io.github.savvasg28.rampguard.core.ports.Notifier
 import io.github.savvasg28.rampguard.core.ports.PlayGateway
 import io.github.savvasg28.rampguard.core.runner.RolloutRunner
 import java.io.IOException
-import java.nio.file.Path
 import java.time.Instant
 
 /** No Google credentials could be found. The message says how to provide them; the cause is not printed. */
@@ -73,40 +73,20 @@ object DefaultWiring : WiringFactory {
         val webhook =
             policy.notify.webhook?.let { config ->
                 env[config.urlEnv]?.takeIf { it.isNotBlank() }?.let { url ->
-                    WebhookNotifier(
-                        url = url,
-                        app = policy.app.packageName,
-                        clock = clock,
-                        headers = config.headers.mapValues { (_, value) -> resolveHeader(value, env) },
-                        secret = config.secretEnv?.let(env::get),
-                        runUrl = runUrl(env),
-                    )
+                    val target =
+                        WebhookTarget(
+                            url = url,
+                            headers = config.headersEnv.mapValues { (_, envVar) -> env[envVar].orEmpty() },
+                            secret = config.secretEnv?.let(env::get),
+                        )
+                    WebhookNotifier(target, policy.app.packageName, GitHubActions.runUrl(env), clock)
                 }
             }
         return Wiring(
             gateway = PlayPublisherGateway(http),
             notifier = CompositeNotifier(listOfNotNull(StdoutNotifier(out), slack, webhook)),
-            audit =
-                CompositeAuditLog(
-                    listOf(StdoutAuditLog(out), JobSummaryAuditLog(env["GITHUB_STEP_SUMMARY"]?.let(Path::of))),
-                ),
+            audit = CompositeAuditLog(listOf(StdoutAuditLog(out), JobSummaryAuditLog(GitHubActions.summaryFile(env)))),
             clock = clock,
         )
     }
-
-    /** A header value of the form `env:NAME` is read from the environment; anything else is sent as written. */
-    internal fun resolveHeader(
-        value: String,
-        env: Map<String, String>,
-    ): String = if (value.startsWith(ENV_PREFIX)) env[value.removePrefix(ENV_PREFIX)].orEmpty() else value
-
-    /** The URL of the current GitHub Actions run, or null outside Actions. */
-    internal fun runUrl(env: Map<String, String>): String? {
-        val server = env["GITHUB_SERVER_URL"] ?: return null
-        val repo = env["GITHUB_REPOSITORY"] ?: return null
-        val run = env["GITHUB_RUN_ID"] ?: return null
-        return "$server/$repo/actions/runs/$run"
-    }
-
-    private const val ENV_PREFIX = "env:"
 }

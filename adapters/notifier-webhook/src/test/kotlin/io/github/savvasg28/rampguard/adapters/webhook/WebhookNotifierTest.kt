@@ -15,13 +15,11 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import javax.crypto.spec.SecretKeySpec
 
 class WebhookNotifierTest {
     private val server = MockWebServer().also { it.start() }
-    private val url get() = server.url("/hooks/SECRETPATH").toString()
     private val clock = MutableClock(Fixtures.monday9)
-    private val release = Fixtures.release(101)
+    private val release = Fixtures.release(52500, "5.25.0")
 
     @AfterEach
     fun stop() = server.shutdown()
@@ -30,12 +28,10 @@ class WebhookNotifierTest {
         headers: Map<String, String> = emptyMap(),
         secret: String? = null,
     ) = WebhookNotifier(
-        url,
-        "com.example.app",
-        clock,
-        headers,
-        secret,
+        WebhookTarget(server.url("/hooks/SECRETPATH").toString(), headers, secret),
+        app = "com.example.app",
         runUrl = "https://github.com/acme/app/actions/runs/1",
+        clock = clock,
     )
 
     @Test
@@ -50,12 +46,12 @@ class WebhookNotifierTest {
             request.getHeader("User-Agent") shouldBe "rampguard"
             val body = Json.parseToJsonElement(request.body.readUtf8()).jsonObject
             body.keys shouldBe
-                setOf("schema", "event", "app", "release", "from", "to", "reason", "source", "message", "at", "run")
+                setOf("event", "app", "at", "run", "release", "from", "to", "reason", "source", "message")
             body["event"]!!.jsonPrimitive.content shouldBe "advanced"
             body["from"]!!.jsonPrimitive.content shouldBe "0.05"
             body["to"]!!.jsonPrimitive.content shouldBe "0.2"
             body["at"]!!.jsonPrimitive.content shouldBe "2026-03-02T09:00:00Z"
-            body["release"]!!.jsonObject["versionCodes"].toString() shouldBe "[101]"
+            body["release"]!!.jsonObject["versionCodes"].toString() shouldBe "[52500]"
             body["reason"].toString() shouldBe "null"
         }
 
@@ -91,10 +87,25 @@ class WebhookNotifierTest {
 
             val request = server.takeRequest()
             request.getHeader("DD-API-KEY") shouldBe "abc"
-            val body = request.body.readUtf8()
-            request.getHeader(WebhookNotifier.SIGNATURE_HEADER) shouldBe
-                "sha256=" + WebhookNotifier.sign(SecretKeySpec("s3cret".toByteArray(), "HmacSHA256"), body)
+            request.getHeader(WebhookTarget.SIGNATURE_HEADER) shouldBe
+                WebhookTarget.signature(WebhookTarget("http://x", secret = "s3cret").key!!, request.body.readUtf8())
         }
+
+    /** Also checked by `examples/events/verify.test.js`, so relays built on `verify.js` accept this signature. */
+    @Test
+    fun `the signature matches the shared test vector`() {
+        val body =
+            WebhookEvent
+                .of(
+                    "com.example.app",
+                    RolloutEvent.Advanced(release, 0.05, 0.2),
+                    Fixtures.monday9,
+                    null,
+                ).toJson()
+        body shouldBe SharedVector.BODY
+        WebhookTarget.signature(WebhookTarget("http://x", secret = SharedVector.SECRET).key!!, body) shouldBe
+            SharedVector.SIGNATURE
+    }
 
     @Test
     fun `a rejected post fails without leaking the URL or headers`() =

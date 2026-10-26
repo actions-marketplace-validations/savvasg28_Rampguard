@@ -10,10 +10,10 @@ For halting a rollout from these tools, see [`examples/halt/`](../halt/README.md
 ## The document
 
 ```json
-{"schema": 1, "event": "advanced", "app": "com.example.app",
+{"event": "advanced", "app": "com.example.app",
+ "at": "2026-10-28T09:17:41Z", "run": "https://github.com/acme/app/actions/runs/123",
  "release": {"name": "5.25.0", "versionCodes": [52500]},
- "from": 0.05, "to": 0.2, "reason": null, "source": null, "message": null,
- "at": "2026-10-28T09:17:41Z", "run": "https://github.com/acme/app/actions/runs/123"}
+ "from": 0.05, "to": 0.2, "reason": null, "source": null, "message": null}
 ```
 
 | Field | Meaning |
@@ -33,7 +33,9 @@ Every document has every key; absent values are `null`. Fields are added, never 
 When `notify.webhook.secretEnv` names a secret, each request carries
 `X-Rampguard-Signature: sha256=<hex HMAC-SHA256 of the raw body>`. A relay must verify this header before it calls a
 vendor API, otherwise anyone who finds the relay URL can write to your Datadog, Sentry or Grafana. The recipes share
-one verification function, [`verify.js`](verify.js).
+one verification function, [`verify.js`](verify.js). Its test, [`verify.test.js`](verify.test.js), checks the same
+signed body that Rampguard's own test suite produces, so the two sides cannot drift apart unnoticed. Run it with
+`node --test examples/events/verify.test.js`.
 
 ## Configuration
 
@@ -53,7 +55,7 @@ same secret plus the vendor API key. Rampguard never sees the vendor key.
 |---|---|---|
 | Datadog, without a relay | A log per event with every field as an attribute, for log search and log monitors | [`datadog-direct.md`](datadog-direct.md) |
 | Datadog, through a relay | A titled, tagged event on the event stream | [`datadog-relay.js`](datadog-relay.js) |
-| Sentry | A release per version code with a deploy per step, so Sentry's release health shows when each stage started | [`sentry-relay.js`](sentry-relay.js) |
+| Sentry | A deploy per step on the release, so the release page shows when each stage started | [`sentry-relay.js`](sentry-relay.js) |
 | Grafana | An annotation per step, so crash and latency dashboards show the rollout stages as vertical lines | [`grafana-relay.js`](grafana-relay.js) |
 
 The relays are Cloudflare Workers because a Worker is one file with no build step. The same code runs on a Cloud

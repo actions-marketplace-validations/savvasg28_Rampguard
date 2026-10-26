@@ -83,7 +83,6 @@ as one JSON document per event:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `schema` | number | The document version, currently `1`. It changes only if a field is renamed or removed, which this contract forbids. |
 | `event` | string | `advanced`, `completed`, `halted`, `ready_to_publish`, `rejected` or `error`. |
 | `app` | string | The package name. |
 | `release` | object or null | `name` and `versionCodes` of the release. Null for `error`. |
@@ -137,8 +136,8 @@ notify:                                # optional
   webhook:
     urlEnv: RAMPGUARD_WEBHOOK_URL
     secretEnv: RAMPGUARD_WEBHOOK_SECRET  # optional, enables X-Rampguard-Signature
-    headers:                             # optional; env:NAME reads the value from the environment
-      DD-API-KEY: env:DD_API_KEY
+    headersEnv:                          # optional; header name to the environment variable holding its value
+      DD-API-KEY: DD_API_KEY
 ```
 
 Validation is strict. Unknown keys fail the job before any API call. Keys from earlier designs (`gates`,

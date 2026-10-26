@@ -35,10 +35,11 @@ internal object PolicyValidator {
         error: (String, String) -> Unit,
     ): WebhookConfig {
         if (file.urlEnv.isBlank()) error("notify.webhook.urlEnv", "must name the environment variable holding the URL")
-        file.headers.keys.filterNot { headerName.matches(it) }.forEach {
-            error("notify.webhook.headers", "'$it' is not a valid header name")
+        file.headersEnv.forEach { (name, envVar) ->
+            if (!headerName.matches(name)) error("notify.webhook.headersEnv", "'$name' is not a valid header name")
+            if (envVar.isBlank()) error("notify.webhook.headersEnv", "'$name' must name an environment variable")
         }
-        return WebhookConfig(file.urlEnv.trim(), file.secretEnv?.trim()?.ifBlank { null }, file.headers)
+        return WebhookConfig(file.urlEnv.trim(), file.secretEnv?.trim()?.ifBlank { null }, file.headersEnv)
     }
 
     private fun validateStages(

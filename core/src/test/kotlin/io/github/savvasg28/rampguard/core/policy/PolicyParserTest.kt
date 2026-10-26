@@ -44,7 +44,7 @@ class PolicyParserTest {
         val yaml =
             minimal +
                 "notify:\n  webhook:\n    urlEnv: HOOK_URL\n    secretEnv: HOOK_SECRET\n" +
-                "    headers:\n      DD-API-KEY: env:DD_API_KEY\n      X-Source: rampguard\n"
+                "    headersEnv:\n      DD-API-KEY: DD_API_KEY\n"
         val webhook =
             PolicyParser
                 .parse(yaml)
@@ -52,13 +52,14 @@ class PolicyParserTest {
                 .notify.webhook!!
         webhook.urlEnv shouldBe "HOOK_URL"
         webhook.secretEnv shouldBe "HOOK_SECRET"
-        webhook.headers shouldBe mapOf("DD-API-KEY" to "env:DD_API_KEY", "X-Source" to "rampguard")
+        webhook.headersEnv shouldBe mapOf("DD-API-KEY" to "DD_API_KEY")
 
-        invalid(minimal + "notify:\n  webhook:\n    urlEnv: ' '\n").single() shouldContain "notify.webhook.urlEnv"
-        invalid(
-            minimal + "notify:\n  webhook:\n    urlEnv: U\n    headers:\n      'bad header': x\n",
-        ).single() shouldContain
+        val webhookWith = { body: String -> minimal + "notify:\n  webhook:\n" + body }
+        invalid(webhookWith("    urlEnv: ' '\n")).single() shouldContain "notify.webhook.urlEnv"
+        invalid(webhookWith("    urlEnv: U\n    headersEnv:\n      'bad header': X\n")).single() shouldContain
             "'bad header' is not a valid header name"
+        invalid(webhookWith("    urlEnv: U\n    headersEnv:\n      X-Key: ''\n")).single() shouldContain
+            "'X-Key' must name an environment variable"
     }
 
     @Test

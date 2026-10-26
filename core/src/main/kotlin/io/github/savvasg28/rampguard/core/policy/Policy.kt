@@ -43,10 +43,10 @@ data class NotifyConfig(
  * @property urlEnv name of the environment variable that holds the URL
  * @property secretEnv name of the environment variable that holds the HMAC secret; when set, each request carries an
  *   `X-Rampguard-Signature: sha256=<hex>` header over the body
- * @property headers extra request headers; a value of the form `env:NAME` is read from that environment variable
+ * @property headersEnv extra request headers, header name to the name of the environment variable that holds the value
  */
 data class WebhookConfig(
     val urlEnv: String,
     val secretEnv: String?,
-    val headers: Map<String, String>,
+    val headersEnv: Map<String, String>,
 )
