@@ -7,7 +7,7 @@ no server and keeps no state.
 This README is for the engineer who installs Rampguard in an Android app repository. It assumes you already upload
 and submit releases through the Play Console or CI, and that your repository uses GitHub Actions.
 
-> **Status: 0.1.0, early.** Listed on the GitHub Marketplace as
+> **Status: early.** Listed on the GitHub Marketplace as
 > [Rampguard Play Rollout](https://github.com/marketplace/actions/rampguard-play-rollout); `savvasg28/Rampguard@v1`
 > resolves to the current release.
 
