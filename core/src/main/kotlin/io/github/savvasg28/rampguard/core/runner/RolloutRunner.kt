@@ -12,7 +12,6 @@ import io.github.savvasg28.rampguard.core.model.RolloutEvent
 import io.github.savvasg28.rampguard.core.policy.Policy
 import io.github.savvasg28.rampguard.core.ports.AuditLog
 import io.github.savvasg28.rampguard.core.ports.Clock
-import io.github.savvasg28.rampguard.core.ports.Notifier
 import io.github.savvasg28.rampguard.core.ports.PlayGateway
 import kotlinx.coroutines.withTimeout
 import java.time.Duration
@@ -26,13 +25,13 @@ data class RunOutcome(
 }
 
 /**
- * Orchestrates one run: observe the production track, decide, apply (unless a dry run), notify, audit. Nothing is
- * persisted between runs. Everything that touches the outside world goes through a port and carries a timeout.
+ * Orchestrates one run: observe the production track, decide, apply (unless a dry run), record. Nothing is persisted
+ * between runs. Everything that touches the outside world goes through a port and carries a timeout. What happened is
+ * in the [DecisionRecord]; the caller renders it for people and for the workflow.
  */
 class RolloutRunner(
     private val policy: Policy,
     gateway: PlayGateway,
-    private val notifier: Notifier,
     private val audit: AuditLog,
     private val clock: Clock,
     private val dryRun: Boolean = false,
@@ -51,7 +50,7 @@ class RolloutRunner(
         return complete("halt", observation, Engine.decideHalt(policy, observation, request.sanitised()))
     }
 
-    /** Read-only: no write, no notification, no audit record. */
+    /** Read-only: no write, no audit record. */
     suspend fun status(): Status = Status.of(policy, observe())
 
     private suspend fun observe(): Observation =
@@ -69,13 +68,6 @@ class RolloutRunner(
         val active = observation.activeRollout
         val events = verdict.events.toMutableList()
         val applied = apply(verdict, active, events)
-        for (event in events) {
-            try {
-                timed { notifier.notify(event) }
-            } catch (e: Exception) {
-                log("notification failed for $event: ${describe(e)}")
-            }
-        }
         val record =
             DecisionRecord(
                 at = clock.now(),

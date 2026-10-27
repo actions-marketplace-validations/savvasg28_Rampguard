@@ -18,7 +18,7 @@ object AuditRenderer {
             )
             appendLine("  decision: $verb${record.decision}" + (record.applied?.let { " applied=$it" } ?: ""))
             record.notes.forEach { appendLine("  note: $it") }
-            record.events.forEach { appendLine("  notify: $it") }
+            record.events.forEach { appendLine("  event: $it") }
         }
 
     fun renderAll(records: List<DecisionRecord>): String = records.joinToString("") { render(it) }

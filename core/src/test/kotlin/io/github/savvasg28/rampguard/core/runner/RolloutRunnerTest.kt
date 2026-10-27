@@ -20,17 +20,6 @@ class RolloutRunnerTest {
     private val v102 = Fixtures.release(102)
 
     @Test
-    fun `a failing notifier does not break the run`() =
-        runTest {
-            val sim = Simulation(Fixtures.policy())
-            sim.play.humanPublish(v101, 0.01)
-            sim.notifier.failure = IllegalStateException("slack down")
-            sim.run().decision.shouldBeInstanceOf<Decision.Advance>()
-            sim.logs.any { it.contains("notification failed") && it.contains("slack down") } shouldBe true
-            sim.audit.records.size shouldBe 1
-        }
-
-    @Test
     fun `status shows the live release, its stage, the next step and releases waiting for a person`() =
         runTest {
             val sim = Simulation(Fixtures.policy())
@@ -50,7 +39,6 @@ class RolloutRunnerTest {
             status.toJson() shouldContain "\"nextStep\": {"
             status.toJson() shouldContain "\"playError\": null"
             sim.audit.records.shouldBeEmpty()
-            sim.notifier.events.shouldBeEmpty()
         }
 
     @Test
@@ -88,7 +76,6 @@ class RolloutRunnerTest {
                 RolloutRunner(
                     policy = Fixtures.policy(),
                     gateway = slow,
-                    notifier = sim.notifier,
                     audit = sim.audit,
                     clock = sim.clock,
                     callTimeout = Duration.ofSeconds(1),

@@ -32,7 +32,7 @@ class DeterminismTest {
             first shouldContain "note: fraction 30% is not a configured stage; treating it as the 20% stage"
             first shouldContain "halt com.example.app\n"
             first shouldContain "decision: Halt(halt requested by datadog: crash alert) applied=true"
-            first shouldContain "notify: halted:v101[101]:datadog"
+            first shouldContain "event: halted:v101[101]:datadog"
         }
 
     @Test

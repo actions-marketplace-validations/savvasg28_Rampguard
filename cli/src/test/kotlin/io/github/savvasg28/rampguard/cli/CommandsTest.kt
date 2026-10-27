@@ -5,7 +5,6 @@ import io.github.savvasg28.rampguard.core.testing.FakePlayGateway
 import io.github.savvasg28.rampguard.core.testing.Fixtures
 import io.github.savvasg28.rampguard.core.testing.MutableClock
 import io.github.savvasg28.rampguard.core.testing.RecordingAuditLog
-import io.github.savvasg28.rampguard.core.testing.RecordingNotifier
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -22,7 +21,6 @@ class CommandsTest {
     lateinit var dir: Path
 
     private val play = FakePlayGateway()
-    private val notifier = RecordingNotifier()
     private val audit = RecordingAuditLog()
     private lateinit var config: Path
 
@@ -30,10 +28,14 @@ class CommandsTest {
         WiringFactory { _, out ->
             Wiring(
                 gateway = play,
-                notifier = CompositeNotifier(listOf(StdoutNotifier(out), notifier)),
                 audit =
                     CompositeAuditLog(
-                        listOf(StdoutAuditLog(out), audit, JobSummaryAuditLog(dir.resolve("summary.md"))),
+                        listOf(
+                            StdoutAuditLog(out),
+                            audit,
+                            JobSummaryAuditLog(dir.resolve("summary.md")),
+                            StepOutputs(dir.resolve("outputs.txt")),
+                        ),
                     ),
                 clock = MutableClock(Fixtures.monday9),
             )
@@ -64,15 +66,17 @@ class CommandsTest {
     }
 
     @Test
-    fun `tick steps the live release, prints the audit, notifies and writes the job summary`() {
+    fun `tick steps the live release, prints the audit, writes the job summary and the step outputs`() {
         val result = run("tick")
 
         result.statusCode shouldBe EXIT_OK
         play.writes shouldContainExactly listOf("setRollout v101[101] 0.2")
         result.stdout shouldContain "decision: Advance(to=20%) applied=true"
-        result.stdout shouldContain "notify: advanced:v101[101]:5%->20%"
-        notifier.events.map { it.toString() } shouldContainExactly listOf("advanced:v101[101]:5%->20%")
+        result.stdout shouldContain "event: advanced:v101[101]:5%->20%"
         dir.resolve("summary.md").readText() shouldContain "decision: Advance(to=20%) applied=true"
+        dir.resolve("outputs.txt").readText() shouldBe
+            "event=advanced\nrelease-name=v101\nversion-codes=101\nfrom-percent=5\nto-percent=20\n" +
+            "reason=\nsource=\nready-to-publish=\nrejected=\n"
     }
 
     @Test
@@ -93,6 +97,7 @@ class CommandsTest {
         result.statusCode shouldBe EXIT_OK
         result.stdout shouldContain "WOULD Advance(to=20%)"
         play.writes.shouldContainExactly()
+        dir.resolve("outputs.txt").readText() shouldContain "event=none\n"
     }
 
     @Test

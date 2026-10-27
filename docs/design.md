@@ -63,8 +63,8 @@ are untrusted text: the run removes control characters, collapses whitespace and
 ### `status`
 
 The run prints the production track as JSON: the live release, its lifecycle and Play status, its fraction, the
-stage it is at, the next step a run would take, and releases waiting for a person. The run writes nothing and sends no
-notification. Field names are a contract for scripts: add fields, never rename them.
+stage it is at, the next step a run would take, and releases waiting for a person. The run writes nothing and records
+nothing. Field names are a contract for scripts: add fields, never rename them.
 
 ### Dry run
 
@@ -72,30 +72,25 @@ notification. Field names are a contract for scripts: add fields, never rename t
 `WOULD Advance(to=20%)`. Two independent checks prevent the write: the runner skips it, and `GuardedPlayGateway`
 refuses it ([ADR 0012](adr/0012-dry-run-is-a-flag-not-a-mode.md)).
 
-### Notifications
+### Reporting
 
-Each run sends one message per event: a step, a completion, a halt, a release waiting to be published, a rejection,
-or a Play failure. Rampguard sends no message for "nothing to do". Because runs keep no memory, a release that waits
-for a person is reported on every run that sees it.
+A run records what it saw and did in one decision record. The CLI renders that record three ways: as text on stdout,
+as the same text in the GitHub Actions job summary, and as step outputs for the steps that follow in the workflow.
+Rampguard sends nothing to Slack or anywhere else itself; the workflow does, with the tool's own action, gated on the
+outputs ([ADR 0013](adr/0013-report-through-step-outputs.md)).
 
-Every event goes to the job log and the job summary, then to each destination in `notify`, in order. A Slack
-destination receives a short message. A webhook destination receives one JSON document per event:
+| Output | Value |
+|---|---|
+| `event` | What this run did to the live release: `advanced`, `completed`, `halted`, `failed` or `none`. A dry run reports `none`, because nothing was done. |
+| `release-name`, `version-codes` | The live release, when there is one. |
+| `from-percent`, `to-percent` | The step, on `advanced` and `completed`, in the unit `stages` uses. |
+| `reason`, `source` | The sanitised halt request, on `halted`. |
+| `ready-to-publish` | A release approved by review that a person has to publish. |
+| `rejected` | A release rejected by review. |
 
-| Field | Type | Present | Meaning |
-|---|---|---|---|
-| `type` | string | always | `rollout.advanced`, `rollout.completed`, `rollout.halted`, `release.readyToPublish`, `release.rejected` or `run.failed`. |
-| `app` | string | always | The package name. |
-| `occurredAt` | string | always | ISO 8601 instant of the run. |
-| `workflowRun` | string | inside GitHub Actions | The URL of the run that sent the event. |
-| `release` | object | all but `run.failed` | `name` and `versionCodes`. |
-| `rollout` | object | `rollout.advanced`, `rollout.completed` | `fromPercent` and `toPercent`, in the same unit as `stages`. |
-| `halt` | object | `rollout.halted` | `reason` and `source`, sanitised as described under `halt`. |
-| `failure` | object | `run.failed` | `message`, without secrets. |
-
-A field that does not apply is absent, not null. The request is a `POST` with `Content-Type: application/json`, the
-headers from the configuration, and, when `signWith` is configured, `X-Rampguard-Signature: sha256=<hex HMAC-SHA256 of
-the body>`. Receivers that need another shape sit behind a small relay; `examples/events/` has three. A notifier
-failure is logged and never fails the run, because the Play write has already happened by then.
+Every output is always written, empty when it does not apply, so a workflow expression never meets an undefined value.
+The names are a contract: add outputs, never rename them. Because runs keep no memory, a release that waits for a
+person appears in `ready-to-publish` on every run that sees it; the workflow decides whether to remind people daily.
 
 ## Architecture
 
@@ -106,10 +101,10 @@ GitHub Actions (app repository)
   workflow_dispatch ────────────▶ rampguard status
 
 rampguard
-  cli/       command-line entry points, config loading, adapter wiring
-  core/      RolloutRunner ─▶ Engine.decide(policy, observation)
-             ports: PlayGateway, Notifier, AuditLog, Clock
-  adapters/  play (Android Publisher API), notifier-slack, notifier-webhook
+  cli/       command-line entry points, config loading, wiring; renders the record to stdout, job summary, outputs
+  core/      RolloutRunner ─▶ Engine.decide(policy, observation) ─▶ DecisionRecord
+             ports: PlayGateway, AuditLog, Clock
+  adapters/  play (Android Publisher API)
 ```
 
 The modules follow three rules:
@@ -131,23 +126,10 @@ writes ([ADR 0009](adr/0009-play-adapters.md)).
 ```yaml
 app: com.example.app
 stages: [1, 5, 20, 50, 100]
-notify:                                # optional; a list, every destination gets every event
-  - slack: ${SLACK_WEBHOOK_URL}
-  - webhook:
-      url: ${RAMPGUARD_WEBHOOK_URL}
-      signWith: ${RAMPGUARD_WEBHOOK_SECRET}   # optional, enables X-Rampguard-Signature
-  - webhook:
-      url: https://http-intake.logs.datadoghq.com/api/v2/logs?ddsource=rampguard
-      headers:
-        DD-API-KEY: ${DD_API_KEY}
 ```
 
-`${NAME}` means the value of environment variable `NAME` at run time; it must be the whole value. `core` keeps the
-reference unresolved (`Setting.FromEnvironment`) and `cli` resolves it, so core never reads the environment.
-
 Validation is strict. Unknown keys fail the job before any API call. Keys from earlier designs (`gates`,
-`minSoakHours`, `blackout`, `mode`) fail with a message that names the ADR that removed them, and the earlier map form
-of `notify` fails with the list form as a hint.
+`minSoakHours`, `blackout`, `mode`, `notify`) fail with a message that names the ADR that removed them.
 
 ## Failure modes
 
@@ -166,5 +148,5 @@ of `notify` fails with the list form as a hint.
   permissions. A dry run needs the same permissions, because nothing in Play distinguishes it until the write.
 - Anyone whose token can send `repository_dispatch` to the repository can halt the rollout. Use a fine-grained token
   per sender.
-- Secrets never appear in logs, audit output, job summaries or tests. Tests assert this for the Slack webhook URL and
-  for the generic webhook URL, headers and secret.
+- The only secret Rampguard holds is the Play key. It never appears in logs, audit output, job summaries, step outputs
+  or tests. Tokens for Slack, Sentry or Datadog stay in the workflow steps that use them.

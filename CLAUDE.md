@@ -8,9 +8,11 @@ behaviour and `docs/adr/` records the decisions behind the code. Read both befor
 
 - `core` has zero I/O dependencies: no HTTP, files, env vars, Google or GitHub libraries. `core/build.gradle.kts`
   has a `checkCoreDependencies` task with an allow-list; `./gradlew check` fails if anything else sneaks in.
-- Everything external goes through a port in `core/.../ports/Ports.kt` (`PlayGateway`, `Notifier`, `AuditLog`,
-  `Clock`). Adapters live under `adapters/`, wiring lives in `cli`. Google types stay inside
-  `adapters/play`; a root Gradle task enforces it.
+- Everything external goes through a port in `core/.../ports/Ports.kt` (`PlayGateway`, `AuditLog`, `Clock`).
+  Adapters live under `adapters/`, wiring lives in `cli`. Google types stay inside `adapters/play`; a root Gradle task
+  enforces it.
+- Rampguard talks to nothing but Play. It reports through the job log, the job summary and GitHub step outputs
+  (`cli/.../Sinks.kt`); notifying other tools is the workflow's job (ADR 0013). Do not add notifier adapters.
 - The engine (`core/.../engine/Engine.kt`) is a pure, stateless function: `decide(policy, observation)` returns a
   `Verdict`. Never add I/O, a clock or memory between runs there (ADR 0011).
 - Inside `core`, errors are values such as `Decision.NoOp` and `PolicyResult.Invalid`. Adapters throw exceptions.
@@ -26,10 +28,8 @@ behaviour and `docs/adr/` records the decisions behind the code. Read both befor
   `core/src/testFixtures/.../Simulation.kt`, or with a property in `EnginePropertyTest.kt`. Scenario tests assert the
   exact action timeline: timestamp and decision text.
 - Reason strings are part of the audit contract. Define them in `engine/Reasons.kt` only.
-- `Status` field names and the webhook document (`adapters/notifier-webhook/.../WebhookEvent.kt`) are contracts for
-  external tools: add fields, never rename them.
-- A configuration value written `${NAME}` is an environment reference. `core` parses it into `Setting.FromEnvironment`
-  and never resolves it; `cli/.../Destinations.kt` resolves it. Keep it that way.
+- `Status` field names and the step output names (`StepOutputs.NAMES` in `cli/.../Sinks.kt`) are contracts for
+  external tools and workflows: add fields, never rename them.
 - Kover line coverage on core must stay at or above 90%.
 
 ## Build and checks
@@ -45,4 +45,4 @@ than widen the configuration. Write comments that say what the code does, not wh
 ## Process
 
 - When you change a design decision, add or amend a record in `docs/adr/`.
-- Never let a secret (the service-account JSON, the Slack webhook URL) appear in logs, audit output or tests.
+- Never let a secret (the service-account JSON) appear in logs, audit output, step outputs or tests.

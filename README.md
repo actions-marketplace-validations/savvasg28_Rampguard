@@ -1,8 +1,9 @@
 # Rampguard
 
 Rampguard is a GitHub Action that advances a Google Play staged rollout one stage per scheduled run, and halts the
-rollout when an alerting tool or a person asks. It needs one YAML file in your app repository and two secrets. It runs
-no server and keeps no state.
+rollout when an alerting tool or a person asks. It needs one YAML file in your app repository and one secret. It runs
+no server and keeps no state. It reports what it did as step outputs, so the steps after it in your workflow can tell
+Slack, Sentry, Datadog or anything else.
 
 This README is for the engineer who installs Rampguard in an Android app repository. It assumes you already upload
 and submit releases through the Play Console or CI, and that your repository uses GitHub Actions.
@@ -41,16 +42,11 @@ already alert from; they tell Rampguard to halt.
 
 ## Install
 
-1. Add two repository secrets:
-   - `PLAY_SERVICE_ACCOUNT_JSON`: the JSON key of a Play service account that can see this app only, with *View app
-     information* and *Release to production* permissions.
-   - `SLACK_WEBHOOK_URL`: optional. An incoming-webhook URL for notifications.
-   - `RAMPGUARD_WEBHOOK_URL`: optional. A URL that receives one JSON document per event, for your own tooling.
-
-   The workflows pass these secrets to Rampguard as environment variables, and the configuration refers to them as
-   `${NAME}`.
+1. Add the repository secret `PLAY_SERVICE_ACCOUNT_JSON`: the JSON key of a Play service account that can see this app
+   only, with *View app information* and *Release to production* permissions.
 2. Copy [`examples/workflows/rollout-tick.yml`](examples/workflows/rollout-tick.yml) and
-   [`examples/workflows/rollout-command.yml`](examples/workflows/rollout-command.yml) into `.github/workflows/`.
+   [`examples/workflows/rollout-command.yml`](examples/workflows/rollout-command.yml) into `.github/workflows/`. Keep
+   the notification steps you want and delete the rest; each needs its own secret.
 3. In both workflow files, set the concurrency group to your package name.
 4. Add `.github/rampguard.yml` (see [Configuration](#configuration)).
 5. From the Actions tab, run the tick workflow once with **dry-run** selected, then read the job summary. The run
@@ -68,52 +64,50 @@ tick workflow in the Actions tab.
 ```yaml
 app: com.example.app
 stages: [1, 5, 20, 50, 100]
-notify:
-  - slack: ${SLACK_WEBHOOK_URL}
-  - webhook:
-      url: ${RAMPGUARD_WEBHOOK_URL}
-      signWith: ${RAMPGUARD_WEBHOOK_SECRET}
 ```
 
 | Key | Required | Meaning |
 |---|---|---|
 | `app` | yes | The application package name. |
 | `stages` | yes | Rollout percentages, strictly increasing, ending in 100. You set the first stage when you publish the release; Rampguard owns every stage after it. |
-| `notify` | no | A list of destinations. Every destination receives every event. Without it, events go to the job log and the job summary only. |
-| `notify[].slack` | | A Slack incoming-webhook URL. The event becomes a short message. |
-| `notify[].webhook.url` | | Any HTTP endpoint. The event becomes a JSON document, `POST`ed as `application/json`. |
-| `notify[].webhook.signWith` | no | A shared secret. When set, each request carries `X-Rampguard-Signature: sha256=<HMAC-SHA256 of the body>`. |
-| `notify[].webhook.headers` | no | Extra request headers, for API keys and routing. |
 
-A value written as `${NAME}` is read from the environment variable `NAME` when Rampguard runs, so no secret is ever in
-the file. Any other value is used as written. A destination whose variable is not set is skipped, and the job log says
-which variable. Unknown keys are rejected, so a typo fails the job before any API call.
-
-The webhook document names what happened in `type` and puts the details in an object named after the subject. The field
-names and `type` values are a contract: fields are added, never renamed.
-
-```json
-{"type": "rollout.advanced",
- "app": "com.example.app",
- "release": {"name": "5.25.0", "versionCodes": [52500]},
- "rollout": {"fromPercent": 5, "toPercent": 20},
- "occurredAt": "2026-10-28T09:17:41Z",
- "workflowRun": "https://github.com/acme/app/actions/runs/123"}
-```
-
-| `type` | Also present |
-|---|---|
-| `rollout.advanced` | `release`, `rollout.fromPercent`, `rollout.toPercent` |
-| `rollout.completed` | `release`, `rollout` with `toPercent` 100 |
-| `rollout.halted` | `release`, `halt.reason`, `halt.source` |
-| `release.readyToPublish` | `release` |
-| `release.rejected` | `release` |
-| `run.failed` | `failure.message` |
-
-Recipes that relay these events to Datadog, Sentry and Grafana are in [`examples/events/`](examples/events/README.md).
+Unknown keys are rejected, so a typo fails the job before any API call.
 
 Because a run steps whatever release is live, publish a new release after the morning run. A release published minutes
 before the run gets its first step minutes later.
+
+## Tell your tools
+
+Rampguard writes what happened to the job log, the job summary and the step outputs. It sends nothing anywhere itself.
+A step after it reads the outputs and calls the tool's own action:
+
+```yaml
+- id: rampguard
+  uses: savvasg28/Rampguard@v1
+  with:
+    command: tick
+    play-credentials: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+
+- if: steps.rampguard.outputs.event == 'advanced'
+  uses: slackapi/slack-github-action@v4
+  with:
+    webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+    webhook-type: incoming-webhook
+    payload: |
+      text: "${{ steps.rampguard.outputs.release-name }} is now at ${{ steps.rampguard.outputs.to-percent }}%"
+```
+
+| Output | Value |
+|---|---|
+| `event` | What this run did to the live release: `advanced`, `completed`, `halted`, `failed` or `none`. A dry run reports `none`. |
+| `release-name`, `version-codes` | The live release. Version codes are comma-separated. |
+| `from-percent`, `to-percent` | The step taken, on `advanced` and `completed`. |
+| `reason`, `source` | Why and who, on `halted`. |
+| `ready-to-publish` | A release that Play review approved and a person has to publish. Reported on every run that sees it. |
+| `rejected` | A release that Play review rejected. |
+
+Every output is always set, empty when it does not apply. The names are a contract: outputs are added, never renamed.
+The example tick workflow has working steps for Slack, Sentry releases, Datadog events and Grafana annotations.
 
 ## Halt a rollout
 

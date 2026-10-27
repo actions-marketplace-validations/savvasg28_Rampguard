@@ -114,7 +114,10 @@ class Halt(
         "--version-code",
         help = "versionCode of the rollout to halt",
     ).long().required()
-    private val reason: String by option("--reason", help = "Why; shown in the notification").default("manual")
+    private val reason: String by option(
+        "--reason",
+        help = "Why; recorded in the audit and the outputs",
+    ).default("manual")
     private val source: String by option("--source", help = "Who or what asked").default("manual")
     private val dryRun: Boolean by option("--dry-run", help = "Decide and report, but write nothing to Play").flag()
 

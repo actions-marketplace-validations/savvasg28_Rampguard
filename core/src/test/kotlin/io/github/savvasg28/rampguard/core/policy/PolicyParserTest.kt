@@ -24,74 +24,17 @@ class PolicyParserTest {
         val policy = PolicyParser.parse(Fixtures.exampleYaml).shouldBeInstanceOf<PolicyResult.Valid>().policy
         policy.app.packageName shouldBe "com.example.app"
         policy.stages shouldContainExactly listOf(1, 5, 20, 50, 100)
-        policy.notify shouldContainExactly listOf(Destination.Slack(Setting.FromEnvironment("SLACK_WEBHOOK_URL")))
     }
 
     @Test
     fun `defaults apply to a minimal file and stages map fractions to the stage at or below`() {
         val policy = PolicyParser.parse(minimal).policyOrThrow()
-        policy.notify shouldBe emptyList()
         policy.stageAtOrBelow(0.005) shouldBe -1
         policy.stageAtOrBelow(0.01) shouldBe 0
         policy.stageAtOrBelow(0.5) shouldBe 0
         policy.stageAtOrBelow(1.0) shouldBe 1
         policy.isOnStage(0.01) shouldBe true
         policy.isOnStage(0.02) shouldBe false
-    }
-
-    @Test
-    fun `destinations are parsed in order with secrets as environment references`() {
-        val yaml =
-            minimal +
-                """
-                notify:
-                  - slack: ${'$'}{SLACK_WEBHOOK_URL}
-                  - webhook:
-                      url: ${'$'}{HOOK_URL}
-                      signWith: ${'$'}{HOOK_SECRET}
-                  - webhook:
-                      url: https://http-intake.logs.datadoghq.com/api/v2/logs?ddsource=rampguard
-                      headers:
-                        DD-API-KEY: ${'$'}{DD_API_KEY}
-                        X-Source: rampguard
-                """.trimIndent()
-        PolicyParser.parse(yaml).policyOrThrow().notify shouldContainExactly
-            listOf(
-                Destination.Slack(Setting.FromEnvironment("SLACK_WEBHOOK_URL")),
-                Destination.Webhook(
-                    Setting.FromEnvironment("HOOK_URL"),
-                    Setting.FromEnvironment("HOOK_SECRET"),
-                    emptyMap(),
-                ),
-                Destination.Webhook(
-                    Setting.Literal("https://http-intake.logs.datadoghq.com/api/v2/logs?ddsource=rampguard"),
-                    signWith = null,
-                    headers =
-                        mapOf(
-                            "DD-API-KEY" to Setting.FromEnvironment("DD_API_KEY"),
-                            "X-Source" to Setting.Literal("rampguard"),
-                        ),
-                ),
-            )
-    }
-
-    @Test
-    fun `a destination must be exactly one kind with well-formed values`() {
-        invalid(minimal + "notify:\n  - {}\n").single() shouldContain
-            "notify[0]: must be exactly one of 'slack' or 'webhook'"
-        invalid(minimal + "notify:\n  - slack: ' '\n").single() shouldBe "notify[0].slack: must not be blank"
-        invalid(minimal + "notify:\n  - webhook:\n      url: https://h/\${PATH}\n").single() shouldContain
-            "notify[0].webhook.url: a secret is written as \${NAME} for the whole value"
-        invalid(
-            minimal + "notify:\n  - webhook:\n      url: U\n      headers:\n        'bad header': x\n",
-        ).single() shouldContain
-            "'bad header' is not a valid header name"
-    }
-
-    @Test
-    fun `the old map form of notify is rejected with the new shape`() {
-        invalid(minimal + "notify:\n  slackWebhookEnv: SLACK_WEBHOOK_URL\n").single() shouldContain
-            "notify is a list of destinations"
     }
 
     @Test
@@ -107,6 +50,7 @@ class PolicyParserTest {
         invalid(minimal + "blackout:\n  timezone: UTC\n").single() shouldContain "ADR 0010 to 0012"
         invalid(minimal + "mode: observe\n").single() shouldContain "--dry-run"
         invalid(minimal + "gates: []\n").single() shouldContain "'gates' was removed"
+        invalid(minimal + "notify:\n  - slack: x\n").single() shouldContain "'notify' was removed, see ADR 0013"
     }
 
     @Test

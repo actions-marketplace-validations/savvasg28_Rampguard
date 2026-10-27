@@ -4,7 +4,6 @@ import io.github.savvasg28.rampguard.core.model.AppId
 import io.github.savvasg28.rampguard.core.model.DecisionRecord
 import io.github.savvasg28.rampguard.core.model.ReleaseId
 import io.github.savvasg28.rampguard.core.model.ReleaseSnapshot
-import io.github.savvasg28.rampguard.core.model.RolloutEvent
 import java.time.Instant
 
 /** Ports. Core depends only on these interfaces; adapters implement them. The runner wraps every call in a timeout. */
@@ -28,10 +27,6 @@ interface PlayGateway {
         app: AppId,
         release: ReleaseId,
     )
-}
-
-interface Notifier {
-    suspend fun notify(event: RolloutEvent)
 }
 
 interface AuditLog {

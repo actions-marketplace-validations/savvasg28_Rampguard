@@ -28,8 +28,6 @@ jobs:
         run: ./gradlew check koverXmlReport --no-daemon --stacktrace
       - name: Validate the example configuration against the parser
         run: ./gradlew :cli:run --no-daemon -q --args="validate --config examples/rampguard.yml"
-      - name: Test the event relay signature check
-        run: node --test examples/events/verify.test.js
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

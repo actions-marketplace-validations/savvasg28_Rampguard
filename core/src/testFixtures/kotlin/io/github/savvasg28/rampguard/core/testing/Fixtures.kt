@@ -17,14 +17,11 @@ object Fixtures {
         name: String = "v$versionCode",
     ): ReleaseId = ReleaseId(listOf(versionCode), name)
 
-    fun policy(stages: List<Int> = listOf(1, 5, 20, 50, 100)): Policy =
-        Policy(app = app, stages = stages, notify = emptyList())
+    fun policy(stages: List<Int> = listOf(1, 5, 20, 50, 100)): Policy = Policy(app = app, stages = stages)
 
     val exampleYaml: String =
         """
         app: com.example.app
         stages: [1, 5, 20, 50, 100]    # percent; first stage is set at submission
-        notify:
-          - slack: ${'$'}{SLACK_WEBHOOK_URL}
         """.trimIndent()
 }
