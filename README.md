@@ -9,8 +9,8 @@ This README is for the engineer who installs Rampguard in an Android app reposit
 and submit releases through the Play Console or CI, and that your repository uses GitHub Actions.
 
 > **Status: early.** Listed on the GitHub Marketplace as
-> [Rampguard Play Rollout](https://github.com/marketplace/actions/rampguard-play-rollout); `savvasg28/Rampguard@v1`
-> resolves to the current release.
+> [Rampguard Play Rollout](https://github.com/marketplace/actions/rampguard-play-rollout). `savvasg28/Rampguard@v1`
+> follows the latest release; `@v1.0.0` and later pin one.
 
 ## Terms
 
@@ -132,9 +132,13 @@ Recipes for Datadog, Sentry, Crashlytics and the shell are in [`examples/halt/`]
 
 This section is for maintainers.
 
-In the Actions tab, run the Release workflow with the version, for example `0.2.0`. It runs the checks, builds the
-jar, pins the jar's SHA-256 in `action.yml`, commits that pin to `main`, moves the `v1` tag to the new commit, and
-uploads the jar and its checksum to the single `v1` release. Installers always use `@v1`.
+In the Actions tab, run the Release workflow with a version such as `1.0.0` and, optionally, a line of notes. It runs
+the checks, builds the jar, pins the jar's release tag and SHA-256 in `action.yml`, commits that to `main`, creates the
+tag and release `v1.0.0` with the jar and its checksum attached, and moves the `v1` tag to the same commit. A released
+version is never rebuilt.
+
+`@v1` follows every release that keeps the inputs and the configuration working. A change that breaks either is a new
+major version. Installers who want an exact version use `@v1.0.0`.
 
 The action refuses to run a jar whose checksum does not match the pin.
 

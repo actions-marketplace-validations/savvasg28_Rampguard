@@ -1,14 +1,17 @@
-# Builds the fat jar, uploads it with its SHA-256 to the single `v1` release, pins the checksum in action.yml,
-# commits that pin to main and moves the `v1` tag to it. Run it from the Actions tab with a version such as 0.2.0;
-# the version goes into the release notes and the commit message.
+# Releases one version: builds the fat jar, pins its SHA-256 and its release tag in action.yml, commits that to main,
+# creates the fixed tag and release vX.Y.Z with the jar attached, and moves the major tag (v1) onto the same commit.
+# Installers use @v1 and follow fixes; anyone who wants an exact version uses @v1.2.3.
 name: Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version being released, for example 0.2.0 (the release and tag stay v1)
+        description: Version to release, for example 1.0.0. Creates tag and release v1.0.0 and moves v1 onto it.
         required: true
+      notes:
+        description: Release notes (optional). One or two sentences on what changed.
+        default: ""
 
 permissions:
   contents: write
@@ -22,6 +25,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Check the version
+        id: version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^([0-9]+)\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must look like 1.0.0, got '$VERSION'"; exit 2; }
+          major="${BASH_REMATCH[1]}"
+          [ "$major" -ge 1 ] || { echo "::error::versions start at 1.0.0; v1 is already published"; exit 2; }
+          if git ls-remote --tags --exit-code origin "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::v$VERSION already exists; a released version is never rebuilt"; exit 2
+          fi
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "major=v$major" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
@@ -35,29 +52,39 @@ jobs:
           cd cli/build/libs
           sha256sum rampguard-all.jar | tee rampguard-all.jar.sha256
           echo "sha256=$(cut -d' ' -f1 rampguard-all.jar.sha256)" >> "$GITHUB_OUTPUT"
-      - name: Pin the checksum in action.yml
+      - name: Pin the jar's release and checksum in action.yml
         env:
+          TAG: ${{ steps.version.outputs.tag }}
           SHA256: ${{ steps.sum.outputs.sha256 }}
         run: |
+          set -euo pipefail
+          sed -i -E "s/^(    default: )v[0-9]+(\.[0-9]+)*$/\1${TAG}/" action.yml
           sed -i -E "s/^(    default: \")[0-9a-f]{64}(\")$/\1${SHA256}\2/" action.yml
-          grep -q "$SHA256" action.yml
-      - name: Commit the pin and move the v1 tag
+          grep -q "default: ${TAG}$" action.yml && grep -q "$SHA256" action.yml
+      - name: Commit, tag the version and move the major tag
         env:
           VERSION: ${{ inputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          MAJOR: ${{ steps.version.outputs.major }}
         run: |
-          case "$VERSION" in [0-9]*) ;; *) echo "::error::version must look like 0.2.0, got '$VERSION'"; exit 2 ;; esac
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add action.yml
-          git commit -m "Release $VERSION: pin the jar checksum" || echo "checksum unchanged"
+          git commit -m "Release $VERSION"
           git push origin HEAD:main
-          git tag -f v1
-          git push -f origin v1
-      - name: Upload the jar to the v1 release
+          git tag -a "$TAG" -m "Rampguard $VERSION"
+          git push origin "$TAG"
+          git tag -f "$MAJOR"
+          git push -f origin "$MAJOR"
+      - name: Create the release with the jar attached
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          NOTES: ${{ inputs.notes }}
         run: |
-          gh release view v1 >/dev/null 2>&1 || gh release create v1 --title v1 --notes "Rampguard $VERSION"
-          gh release upload v1 cli/build/libs/rampguard-all.jar cli/build/libs/rampguard-all.jar.sha256 --clobber
-          gh release edit v1 --notes "Rampguard $VERSION. Steps a Google Play staged rollout one stage per scheduled run and halts it on command. Stateless; no server."
+          set -euo pipefail
+          notes="${NOTES:-Steps a Google Play staged rollout one stage per scheduled run and halts it on command. Stateless; no server.}"
+          gh release create "$TAG" --title "$VERSION" --notes "$notes" \
+            cli/build/libs/rampguard-all.jar cli/build/libs/rampguard-all.jar.sha256
