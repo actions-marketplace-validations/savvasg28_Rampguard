@@ -2,7 +2,6 @@ package io.github.savvasg28.rampguard.core.testing
 
 import io.github.savvasg28.rampguard.core.model.AppId
 import io.github.savvasg28.rampguard.core.model.ReleaseId
-import io.github.savvasg28.rampguard.core.policy.NotifyConfig
 import io.github.savvasg28.rampguard.core.policy.Policy
 import java.time.Instant
 
@@ -19,13 +18,13 @@ object Fixtures {
     ): ReleaseId = ReleaseId(listOf(versionCode), name)
 
     fun policy(stages: List<Int> = listOf(1, 5, 20, 50, 100)): Policy =
-        Policy(app = app, stages = stages, notify = NotifyConfig(slackWebhookEnv = null))
+        Policy(app = app, stages = stages, notify = emptyList())
 
     val exampleYaml: String =
         """
         app: com.example.app
         stages: [1, 5, 20, 50, 100]    # percent; first stage is set at submission
         notify:
-          slackWebhookEnv: SLACK_WEBHOOK_URL
+          - slack: ${'$'}{SLACK_WEBHOOK_URL}
         """.trimIndent()
 }

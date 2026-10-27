@@ -7,7 +7,7 @@ no server and keeps no state.
 This README is for the engineer who installs Rampguard in an Android app repository. It assumes you already upload
 and submit releases through the Play Console or CI, and that your repository uses GitHub Actions.
 
-> **Status: 0.1.0, early.** Listed on the GitHub Marketplace as
+> **Status: early.** Listed on the GitHub Marketplace as
 > [Rampguard Play Rollout](https://github.com/marketplace/actions/rampguard-play-rollout); `savvasg28/Rampguard@v1`
 > resolves to the current release.
 
@@ -45,6 +45,10 @@ already alert from; they tell Rampguard to halt.
    - `PLAY_SERVICE_ACCOUNT_JSON`: the JSON key of a Play service account that can see this app only, with *View app
      information* and *Release to production* permissions.
    - `SLACK_WEBHOOK_URL`: optional. An incoming-webhook URL for notifications.
+   - `RAMPGUARD_WEBHOOK_URL`: optional. A URL that receives one JSON document per event, for your own tooling.
+
+   The workflows pass these secrets to Rampguard as environment variables, and the configuration refers to them as
+   `${NAME}`.
 2. Copy [`examples/workflows/rollout-tick.yml`](examples/workflows/rollout-tick.yml) and
    [`examples/workflows/rollout-command.yml`](examples/workflows/rollout-command.yml) into `.github/workflows/`.
 3. In both workflow files, set the concurrency group to your package name.
@@ -65,16 +69,48 @@ tick workflow in the Actions tab.
 app: com.example.app
 stages: [1, 5, 20, 50, 100]
 notify:
-  slackWebhookEnv: SLACK_WEBHOOK_URL
+  - slack: ${SLACK_WEBHOOK_URL}
+  - webhook:
+      url: ${RAMPGUARD_WEBHOOK_URL}
+      signWith: ${RAMPGUARD_WEBHOOK_SECRET}
 ```
 
 | Key | Required | Meaning |
 |---|---|---|
 | `app` | yes | The application package name. |
 | `stages` | yes | Rollout percentages, strictly increasing, ending in 100. You set the first stage when you publish the release; Rampguard owns every stage after it. |
-| `notify.slackWebhookEnv` | no | The name of the environment variable that holds the Slack webhook URL. Without it, events go to the job log and the job summary only. |
+| `notify` | no | A list of destinations. Every destination receives every event. Without it, events go to the job log and the job summary only. |
+| `notify[].slack` | | A Slack incoming-webhook URL. The event becomes a short message. |
+| `notify[].webhook.url` | | Any HTTP endpoint. The event becomes a JSON document, `POST`ed as `application/json`. |
+| `notify[].webhook.signWith` | no | A shared secret. When set, each request carries `X-Rampguard-Signature: sha256=<HMAC-SHA256 of the body>`. |
+| `notify[].webhook.headers` | no | Extra request headers, for API keys and routing. |
 
-Unknown keys are rejected, so a typo fails the job before any API call.
+A value written as `${NAME}` is read from the environment variable `NAME` when Rampguard runs, so no secret is ever in
+the file. Any other value is used as written. A destination whose variable is not set is skipped, and the job log says
+which variable. Unknown keys are rejected, so a typo fails the job before any API call.
+
+The webhook document names what happened in `type` and puts the details in an object named after the subject. The field
+names and `type` values are a contract: fields are added, never renamed.
+
+```json
+{"type": "rollout.advanced",
+ "app": "com.example.app",
+ "release": {"name": "5.25.0", "versionCodes": [52500]},
+ "rollout": {"fromPercent": 5, "toPercent": 20},
+ "occurredAt": "2026-10-28T09:17:41Z",
+ "workflowRun": "https://github.com/acme/app/actions/runs/123"}
+```
+
+| `type` | Also present |
+|---|---|
+| `rollout.advanced` | `release`, `rollout.fromPercent`, `rollout.toPercent` |
+| `rollout.completed` | `release`, `rollout` with `toPercent` 100 |
+| `rollout.halted` | `release`, `halt.reason`, `halt.source` |
+| `release.readyToPublish` | `release` |
+| `release.rejected` | `release` |
+| `run.failed` | `failure.message` |
+
+Recipes that relay these events to Datadog, Sentry and Grafana are in [`examples/events/`](examples/events/README.md).
 
 Because a run steps whatever release is live, publish a new release after the morning run. A release published minutes
 before the run gets its first step minutes later.

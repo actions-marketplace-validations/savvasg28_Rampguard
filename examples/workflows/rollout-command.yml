@@ -44,3 +44,5 @@ jobs:
           play-credentials: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RAMPGUARD_WEBHOOK_URL: ${{ secrets.RAMPGUARD_WEBHOOK_URL }}
+          RAMPGUARD_WEBHOOK_SECRET: ${{ secrets.RAMPGUARD_WEBHOOK_SECRET }}

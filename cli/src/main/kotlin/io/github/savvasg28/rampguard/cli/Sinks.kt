@@ -59,3 +59,15 @@ class CompositeAuditLog(
 ) : AuditLog {
     override suspend fun record(record: DecisionRecord) = logs.forEach { it.record(record) }
 }
+
+/** The GitHub Actions environment variables Rampguard reads. Each returns null outside Actions. */
+object GitHubActions {
+    fun summaryFile(env: Map<String, String>): Path? = env["GITHUB_STEP_SUMMARY"]?.let(Path::of)
+
+    fun runUrl(env: Map<String, String>): String? {
+        val server = env["GITHUB_SERVER_URL"] ?: return null
+        val repository = env["GITHUB_REPOSITORY"] ?: return null
+        val runId = env["GITHUB_RUN_ID"] ?: return null
+        return "$server/$repository/actions/runs/$runId"
+    }
+}
