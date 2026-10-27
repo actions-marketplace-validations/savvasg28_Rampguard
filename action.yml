@@ -35,7 +35,7 @@ inputs:
     default: v1
   rampguard-sha256:
     description: Expected SHA-256 of that jar. The download is refused if it does not match.
-    default: "3e474e23f13283c5d0ff80a1c9d13836d895527151d4469d8c42e66ca2af138b"
+    default: "7f9311010631663b556611fa59db739d0171d2f30fed8d15c0e679ee44dce7e7"
 
 outputs:
   event:
