@@ -19,7 +19,6 @@ You need JDK 21. Everything else comes through the Gradle wrapper.
 |---|---|
 | `core/` | The decision engine, the policy parser and the ports. No I/O. |
 | `adapters/play/` | The Android Publisher API adapter. |
-| `adapters/notifier-slack/` | The Slack notifier. |
 | `cli/` | Command-line entry points and adapter wiring. |
 | `docs/` | The design document and the architecture decision records. |
 | `examples/` | The configuration file and the two workflows that installers copy. |

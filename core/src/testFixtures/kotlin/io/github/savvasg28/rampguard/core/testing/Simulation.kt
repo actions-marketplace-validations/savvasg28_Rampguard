@@ -18,7 +18,6 @@ class Simulation(
 ) {
     val clock = MutableClock(start)
     val play = FakePlayGateway()
-    val notifier = RecordingNotifier()
     val audit = RecordingAuditLog()
     val logs = mutableListOf<String>()
     val timeline = mutableListOf<String>()
@@ -27,7 +26,6 @@ class Simulation(
         RolloutRunner(
             policy = policy,
             gateway = play,
-            notifier = notifier,
             audit = audit,
             clock = clock,
             dryRun = dryRun,
@@ -53,7 +51,8 @@ class Simulation(
 
     fun auditText(): String = AuditRenderer.renderAll(audit.records)
 
-    val notifications: List<String> get() = notifier.events.map { it.toString() }
+    /** Every event of every run so far, as the audit renders them. */
+    val events: List<String> get() = audit.records.flatMap { it.events }.map { it.toString() }
 
     private fun entry(outcome: RunOutcome): String = entry(outcome.record.at, outcome.decision.toString())
 

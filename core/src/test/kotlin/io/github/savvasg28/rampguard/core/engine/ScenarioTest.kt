@@ -50,7 +50,7 @@ class ScenarioTest {
                     "setRollout v101[101] 0.5",
                     "complete v101[101]",
                 )
-            sim.notifications shouldContainExactly
+            sim.events shouldContainExactly
                 listOf(
                     "advanced:v101[101]:1%->5%",
                     "advanced:v101[101]:5%->20%",
@@ -132,7 +132,7 @@ class ScenarioTest {
                     entry("2026-03-03T09:00:00Z", "NoOp(release v101[101] is completed; nothing to do)"),
                     entry("2026-03-04T09:00:00Z", "NoOp(release v101[101] is completed; nothing to do)"),
                 )
-            sim.notifications shouldContainExactly listOf("advanced:v101[101]:1%->5%")
+            sim.events shouldContainExactly listOf("advanced:v101[101]:1%->5%")
         }
 
     @Test
@@ -169,7 +169,7 @@ class ScenarioTest {
                     ),
                 )
             sim.play.writes shouldContainExactly listOf("halt v101[101]")
-            sim.notifications shouldContainExactly listOf("halted:v101[101]:datadog")
+            sim.events shouldContainExactly listOf("halted:v101[101]:datadog")
         }
 
     @Test
@@ -206,7 +206,7 @@ class ScenarioTest {
                     "NoOp(release v100[100] is completed; nothing to do)",
                     "Advance(to=5%)",
                 )
-            sim.notifications shouldContainExactly
+            sim.events shouldContainExactly
                 listOf(
                     "ready-to-publish:v101[101]",
                     "ready-to-publish:v101[101]",
@@ -265,7 +265,7 @@ class ScenarioTest {
                     "NoOp(Play production track could not be read: 503 from Play)",
                     "Advance(to=5%)",
                 )
-            sim.notifications shouldContainExactly
+            sim.events shouldContainExactly
                 listOf(
                     "guard-error:Play production track could not be read: 503 from Play",
                     "guard-error:Play production track could not be read: 503 from Play",
@@ -285,7 +285,7 @@ class ScenarioTest {
             sim.timeline shouldContainExactly
                 listOf(entry("2026-03-02T09:00:00Z", "Advance(to=5%)"), entry("2026-03-03T09:00:00Z", "Advance(to=5%)"))
             sim.audit.records.map { it.applied } shouldContainExactly listOf(false, true)
-            sim.notifications shouldContainExactly
+            sim.events shouldContainExactly
                 listOf(
                     "advanced:v101[101]:1%->5%",
                     "guard-error:write to Play failed: edit conflict",

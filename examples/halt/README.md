@@ -19,7 +19,7 @@ Accept: application/vnd.github+json
 |---|---|
 | `event_type` | Always `rollout-halt`. |
 | `client_payload.versionCode` | The version code of the release to halt. Rampguard ignores the request if it is not the live release, so a late alert cannot halt the next release. Digits only; the action strips anything else, so `version_code:101` also works. |
-| `client_payload.reason` | Free text, shown in the notification. Truncated to 200 characters. |
+| `client_payload.reason` | Free text, recorded in the audit and the `reason` output. Truncated to 200 characters. |
 | `client_payload.source` | Who sent it. Truncated to 64 characters. |
 
 ### The token

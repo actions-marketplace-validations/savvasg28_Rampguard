@@ -19,6 +19,4 @@ rootProject.name = "rampguard"
 
 include(":core")
 include(":adapters:play")
-include(":adapters:notifier-slack")
-include(":adapters:notifier-webhook")
 include(":cli")

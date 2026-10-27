@@ -5,11 +5,9 @@ import io.github.savvasg28.rampguard.core.model.DecisionRecord
 import io.github.savvasg28.rampguard.core.model.LifecycleState
 import io.github.savvasg28.rampguard.core.model.ReleaseId
 import io.github.savvasg28.rampguard.core.model.ReleaseSnapshot
-import io.github.savvasg28.rampguard.core.model.RolloutEvent
 import io.github.savvasg28.rampguard.core.model.RolloutStatus
 import io.github.savvasg28.rampguard.core.ports.AuditLog
 import io.github.savvasg28.rampguard.core.ports.Clock
-import io.github.savvasg28.rampguard.core.ports.Notifier
 import io.github.savvasg28.rampguard.core.ports.PlayGateway
 import java.time.Duration
 import java.time.Instant
@@ -109,16 +107,6 @@ class FakePlayGateway : PlayGateway {
         val i = production.indexOfFirst { it.release.sameAs(release) }
         require(i >= 0) { "no such release on the track: $release" }
         production[i] = f(production[i])
-    }
-}
-
-class RecordingNotifier : Notifier {
-    val events = mutableListOf<RolloutEvent>()
-    var failure: Throwable? = null
-
-    override suspend fun notify(event: RolloutEvent) {
-        failure?.let { throw it }
-        events += event
     }
 }
 

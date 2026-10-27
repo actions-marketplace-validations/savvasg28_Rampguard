@@ -57,8 +57,7 @@ object PolicyParser {
                 return PolicyResult.Invalid(listOf(unknownProperty(e)))
             } catch (e: YamlException) {
                 val path = e.path.toHumanReadableString().ifBlank { "<root>" }
-                val hint = if (path == "notify") NOTIFY_HINT else ""
-                return PolicyResult.Invalid(listOf(ConfigError(path, (e.message ?: "invalid YAML") + hint)))
+                return PolicyResult.Invalid(listOf(ConfigError(path, e.message ?: "invalid YAML")))
             } catch (e: SerializationException) {
                 return PolicyResult.Invalid(listOf(ConfigError("<root>", e.message ?: "invalid configuration")))
             }
@@ -68,17 +67,15 @@ object PolicyParser {
     private fun unknownProperty(e: UnknownPropertyException): ConfigError {
         val path = e.path.toHumanReadableString().ifBlank { "<root>" }
         val hint =
-            if (e.propertyName in REMOVED_KEYS) {
-                " ('${e.propertyName}' was removed, see ADR 0010 to 0012; a dry run is the --dry-run flag)"
-            } else {
-                ""
+            when (e.propertyName) {
+                in REMOVED_KEYS ->
+                    " ('${e.propertyName}' was removed, see ADR 0010 to 0012; a dry run is the --dry-run flag)"
+                "notify" -> " ('notify' was removed, see ADR 0013; the action reports through step outputs)"
+                else -> ""
             }
         return ConfigError(path, (e.message ?: "unknown property '${e.propertyName}'") + hint)
     }
 
     private val REMOVED_KEYS =
         setOf("gates", "windowHours", "minSoakHours", "blackout", "guardErrorAfterFailures", "mode")
-
-    private const val NOTIFY_HINT =
-        " (notify is a list of destinations, for example '- slack: \${SLACK_WEBHOOK_URL}'; see the README)"
 }

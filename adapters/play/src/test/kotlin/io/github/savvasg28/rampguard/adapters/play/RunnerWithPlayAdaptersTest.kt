@@ -10,7 +10,6 @@ import io.github.savvasg28.rampguard.core.runner.RolloutRunner
 import io.github.savvasg28.rampguard.core.testing.Fixtures
 import io.github.savvasg28.rampguard.core.testing.MutableClock
 import io.github.savvasg28.rampguard.core.testing.RecordingAuditLog
-import io.github.savvasg28.rampguard.core.testing.RecordingNotifier
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -40,7 +39,6 @@ class RunnerWithPlayAdaptersTest {
         return RolloutRunner(
             policy = Fixtures.policy(),
             gateway = PlayPublisherGateway(play.http(), play.endpoints),
-            notifier = RecordingNotifier(),
             audit = RecordingAuditLog(),
             clock = MutableClock(Instant.parse("2026-03-12T09:00:00Z")),
             dryRun = dryRun,

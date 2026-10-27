@@ -1,8 +1,8 @@
 package io.github.savvasg28.rampguard.core.model
 
 /**
- * Something worth telling a human about. Events describe what this run saw or did; there is no memory between
- * runs, so a state that persists (a release waiting to be published) is reported on every run that sees it.
+ * Something a run saw or did that the workflow may want to act on. There is no memory between runs, so a state that
+ * persists (a release waiting to be published) is reported on every run that sees it.
  */
 sealed interface RolloutEvent {
     data class ReadyToPublish(

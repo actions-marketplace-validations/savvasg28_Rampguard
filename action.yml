@@ -22,7 +22,7 @@ inputs:
     description: For halt, the versionCode of the release to halt. Non-digits are stripped, so a tag value like version_code:101 works.
     default: ""
   reason:
-    description: For halt, why. Shown in the notification.
+    description: For halt, why. Recorded in the audit and the outputs.
     default: manual
   source:
     description: For halt, who or what asked.
@@ -36,6 +36,35 @@ inputs:
   rampguard-sha256:
     description: Expected SHA-256 of that jar. The download is refused if it does not match.
     default: "3e474e23f13283c5d0ff80a1c9d13836d895527151d4469d8c42e66ca2af138b"
+
+outputs:
+  event:
+    description: What this run did to the live release. One of advanced, completed, halted, failed, none. A dry run reports none.
+    value: ${{ steps.run.outputs.event }}
+  release-name:
+    description: Name of the live release, or empty.
+    value: ${{ steps.run.outputs.release-name }}
+  version-codes:
+    description: Version codes of the live release, comma-separated, or empty.
+    value: ${{ steps.run.outputs.version-codes }}
+  from-percent:
+    description: On advanced and completed, the rollout percentage before the step.
+    value: ${{ steps.run.outputs.from-percent }}
+  to-percent:
+    description: On advanced and completed, the rollout percentage after the step.
+    value: ${{ steps.run.outputs.to-percent }}
+  reason:
+    description: On halted, why.
+    value: ${{ steps.run.outputs.reason }}
+  source:
+    description: On halted, who or what asked.
+    value: ${{ steps.run.outputs.source }}
+  ready-to-publish:
+    description: Name of a release that Play review approved and a person has to publish, or empty.
+    value: ${{ steps.run.outputs.ready-to-publish }}
+  rejected:
+    description: Name of a release that Play review rejected, or empty.
+    value: ${{ steps.run.outputs.rejected }}
 
 runs:
   using: composite
@@ -75,6 +104,7 @@ runs:
         echo "::add-mask::$PLAY_CREDENTIALS"
 
     - name: Run rampguard
+      id: run
       shell: bash
       env:
         COMMAND: ${{ inputs.command }}
