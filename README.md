@@ -137,6 +137,9 @@ the checks, builds the jar, pins the jar's release tag and SHA-256 in `action.ym
 tag and release `v1.0.0` with the jar and its checksum attached, and moves the `v1` tag to the same commit. A released
 version is never rebuilt.
 
+Then open the new release in the browser, edit it, tick **Publish this Action to the GitHub Marketplace** and update it.
+The Marketplace flag can only be set in the browser, and the listing shows the newest release that has it.
+
 `@v1` follows every release that keeps the inputs and the configuration working. A change that breaks either is a new
 major version. Installers who want an exact version use `@v1.0.0`.
 
